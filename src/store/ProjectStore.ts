@@ -1,6 +1,7 @@
 import type { Plugin, TAbstractFile } from 'obsidian'
 import { App, Notice, TFile, TFolder, normalizePath } from 'obsidian'
 import {
+  type LinkedNote,
   type PMSettings,
   type Project,
   type ProjectPatch,
@@ -22,6 +23,8 @@ import {
   indexRemoveSubtree,
   indexSetParent,
   rebuildTaskIndex,
+  reconcileLinkedParents,
+  readLinkedNotes,
   addTaskToTree,
   cloneTaskForest,
   cloneTaskSubtree,
@@ -663,6 +666,14 @@ export class ProjectStore implements TaskSource {
     return this.queue(project.filePath, () => this.doSaveProject(project))
   }
 
+  /** Edit project-owned links through the same queue as native task changes. */
+  async updateLinkedNotes(project: Project, update: (notes: LinkedNote[]) => LinkedNote[]): Promise<void> {
+    await this.queue(project.filePath, async () => {
+      project.linkedNotes = readLinkedNotes(update(project.linkedNotes ?? []))
+      await this.doSaveProject(project)
+    })
+  }
+
   /** Patch-only, so the editor's stale draft can't overwrite fields it didn't change. */
   async updateProject(project: Project, patch: ProjectPatch): Promise<void> {
     const previousPath = project.filePath
@@ -699,6 +710,12 @@ export class ProjectStore implements TaskSource {
   }
 
   private async doSaveProject(project: Project): Promise<void> {
+    reconcileLinkedParents(project, this.statusesFor(project), (task, patch) => {
+      const changes: Partial<Task> = { ...patch }
+      this.stampCompletion(project, task, changes)
+      Object.assign(task, changes, { updatedAt: new Date().toISOString() })
+      this.markDirty(project, [task.id], 'fm')
+    })
     // Snapshot before any await, so concurrent markDirty calls land in the next save.
     const dirty = this.dirtyTasks.get(project.filePath) ?? new Map<string, DirtyKind>()
     this.dirtyTasks.delete(project.filePath)

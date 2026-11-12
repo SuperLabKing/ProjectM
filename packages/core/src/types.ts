@@ -83,6 +83,14 @@ export interface Task {
   archived?: boolean // runtime only, derived from file location in Archive/ subfolder
 }
 
+/** A project-owned association to a vault note outside the native task tree. */
+export interface LinkedNote {
+  id: string
+  note: string
+  parentId: string | null
+  status: TaskStatus
+}
+
 export interface Project {
   id: string
   title: string
@@ -102,6 +110,9 @@ export interface Project {
   archived?: boolean
   /** Per-project overrides for the global settings. Absent fields inherit. */
   config?: ProjectConfig
+  linkedNotes?: LinkedNote[]
+  /** Last automatic hold/cancel status, or an empty string for other managed parents. */
+  linkedRollups?: Record<string, TaskStatus>
   /** Not serialized. Rebuilt on load, maintained by the store's mutators. */
   taskIndex: TaskIndex
 }

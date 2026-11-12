@@ -77,6 +77,39 @@ async function addNamed(
   return task
 }
 
+it('persists linked-note rollups with native tasks while leaving source notes untouched', async () => {
+  const { app } = newStore()
+  const settings = { ...DEFAULT_SETTINGS, statuses: DEFAULT_SETTINGS.statuses }
+  const store = new ProjectStore(app, () => settings)
+  const project = await store.createProject('Linked', 'Projects')
+  const grandparent = await addNamed(store, project, 'Grandparent')
+  const parent = await addNamed(store, project, 'Parent', grandparent.id)
+  const child = await addNamed(store, project, 'Child', parent.id)
+  const source = await app.vault.create('Literature.md', '---\nreviewed: true\n---\nOriginal text.')
+  const original = await app.vault.read(source)
+
+  await store.updateLinkedNotes(project, () => [
+    { id: 'ref', note: '[[Literature.md]]', parentId: parent.id, status: 'done' }
+  ])
+  expect([parent.status, parent.progress]).toEqual(['in-progress', 50])
+  await store.updateTask(project, child.id, { status: 'done' })
+  expect([parent.status, parent.progress, grandparent.status]).toEqual(['done', 100, 'done'])
+
+  const cold = new ProjectStore(app, () => settings)
+  const reopened = expectDefined(await cold.loadProjectByPath(project.filePath))
+  const currentParent = expectDefined(reopened.taskIndex.get(parent.id)?.task)
+  await cold.updateLinkedNotes(reopened, (notes) => notes.map((note) => ({ ...note, status: 'cancelled' })))
+  expect([currentParent.status, currentParent.progress]).toEqual(['in-progress', 100])
+  await cold.updateTask(reopened, child.id, { status: 'cancelled' })
+  expect([currentParent.status, currentParent.progress]).toEqual(['cancelled', 100])
+  await cold.updateLinkedNotes(reopened, (notes) => notes.map((note) => ({ ...note, status: 'todo' })))
+  expect([currentParent.status, currentParent.progress]).toEqual(['todo', 50])
+  await cold.updateLinkedNotes(reopened, () => [])
+  expect(reopened.linkedRollups).toEqual({})
+  expect(await app.vault.read(source)).toBe(original)
+  expect(reopened.taskIndex.size).toBe(3)
+})
+
 describe('ProjectStore live project instance', () => {
   beforeEach(() => {
     vi.useFakeTimers()
