@@ -25,6 +25,7 @@ describe('view fields', () => {
 
   it('shows custom fields by default in a table only', () => {
     expect(defaultFields('table', one)).toContain('cf:client')
+    expect(defaultFields('table', one)).toEqual(expect.arrayContaining(['start', 'due', 'completed']))
     expect(defaultFields('kanban', one)).not.toContain('cf:client')
     expect(defaultFields('kanban', one)).not.toContain('description')
     expect(defaultFields('gantt', one)).toEqual(['title'])
@@ -33,7 +34,15 @@ describe('view fields', () => {
   it('keeps the title first and drops fields that no longer exist', () => {
     const fields: ViewFields = { table: { visible: ['due', 'cf:gone', 'title', 'status'] } }
     expect(shownFields(fields, 'table', one)).toEqual(['title', 'due', 'status'])
-    expect(hiddenFields(fields, 'table', one)).toEqual(['priority', 'assignees', 'progress', 'time', 'cf:client'])
+    expect(hiddenFields(fields, 'table', one)).toEqual([
+      'priority',
+      'assignees',
+      'start',
+      'completed',
+      'progress',
+      'time',
+      'cf:client'
+    ])
   })
 
   it('keeps the title in a table even when every field is hidden', () => {

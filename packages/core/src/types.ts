@@ -89,6 +89,10 @@ export interface LinkedNote {
   note: string
   parentId: string | null
   status: TaskStatus
+  /** Place this association before a direct native sibling, or at the end if unset. */
+  beforeTaskId?: string
+  /** Native task IDs shown under this association, in sibling order. */
+  childTaskIds?: string[]
 }
 
 export interface Project {
@@ -224,7 +228,7 @@ export interface ProjectListFilter {
 export type ProjectGroupBy = 'none' | 'folder' | 'tag'
 
 /** The project list's columns after the title, in their default order. */
-export const PROJECT_LIST_FIELDS = ['progress', 'tasks', 'members', 'due'] as const
+export const PROJECT_LIST_FIELDS = ['progress', 'tasks', 'members', 'start', 'due', 'completed'] as const
 export type ProjectListField = (typeof PROJECT_LIST_FIELDS)[number]
 
 /** What the project list shows. Archived projects follow `PMSettings.showArchivedProjects`. */
@@ -279,6 +283,7 @@ export interface PerProjectFilter {
   filter: FilterState
   activeSavedViewId: string | null
   sort: SortRule[]
+  tableManualOrder?: boolean
   group: GroupState
   fields: ViewFields
   ganttGranularity: GanttGranularity
@@ -390,6 +395,7 @@ export interface PMSettings {
   editorSaveModifier: 'Shift' | 'Mod'
   /** Where a project link lands: its overview page or its tasks in the default view. */
   projectSurface: 'overview' | 'tasks'
+  projectTab: 'new' | 'current'
   /** Keyed by scope key, e.g. `project:Projects/Roadmap.md`. */
   projectFilters: Record<string, PerProjectFilter>
   /** The fields a scope shows before it has an entry in `projectFilters`. */
@@ -403,6 +409,9 @@ export interface PMSettings {
   /** Whether the project list shows archived projects. */
   showArchivedProjects: boolean
   projectList: ProjectListState
+  projectColumnWidths?: Partial<Record<'title' | ProjectListField, number>>
+  projectOrder?: string[]
+  projectManualOrder?: boolean
   projectListViews: ProjectListView[]
   /** A localhost HTTP and MCP server for other tools on this machine. Desktop only. */
   localApiEnabled: boolean
@@ -488,6 +497,7 @@ export const DEFAULT_SETTINGS: PMSettings = {
   taskEditorSurface: 'modal',
   editorSaveModifier: 'Shift',
   projectSurface: 'overview',
+  projectTab: 'new',
   projectFilters: {},
   defaultFields: {},
   scopeViews: {},

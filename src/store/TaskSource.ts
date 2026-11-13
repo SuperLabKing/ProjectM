@@ -1,5 +1,13 @@
 import type { Plugin, TFile } from 'obsidian'
-import type { Project, ProjectPatch, ResolvedProjectConfig, Task, TaskPriority, TaskStatus } from '@dotpm/core'
+import type {
+  LinkedNote,
+  Project,
+  ProjectPatch,
+  ResolvedProjectConfig,
+  Task,
+  TaskPriority,
+  TaskStatus
+} from '@dotpm/core'
 import type { TaskFileNameConflictError } from './ProjectStore'
 
 export interface ImportNoteOptions {
@@ -47,10 +55,13 @@ export interface TaskSource {
   moveProjectIntoOwnFolder(projectPath: string): Promise<string | null>
   /** Writes a sub-project's `parent` link again, for when the parent note moved. */
   repointProjectParent(childPath: string, parentPath: string): Promise<void>
+  moveProject(project: Project, parentPath: string | null): Promise<boolean>
+  moveProjects(projects: Project[], parentPath: string | null): Promise<boolean>
   /** Writes the reference fields of the named notes in place, leaving name and body alone. */
   normalizeTaskRefs(project: Project, taskIds: string[], includeProjectNote: boolean): Promise<void>
   saveProject(project: Project): Promise<void>
   updateProject(project: Project, patch: ProjectPatch): Promise<void>
+  updateLinkedNotes(project: Project, update: (notes: LinkedNote[]) => LinkedNote[]): Promise<void>
   deleteProject(project: Project): Promise<void>
 
   insertTask(project: Project, task: Task, parentId?: string | null): Promise<void>
@@ -76,10 +87,16 @@ export interface TaskSource {
     taskIds: string[],
     patch: Partial<Task> | ((task: Task) => Partial<Task> | null)
   ): Promise<void>
-  moveTask(project: Project, taskId: string, newParentId: string | null): Promise<void>
+  moveTask(
+    project: Project,
+    taskId: string,
+    newParentId: string | null,
+    placement?: { taskId: string; position: 'before' | 'after' }
+  ): Promise<void>
   /** Moves a task and its subtasks to another project, keeping their ids. */
   moveTaskToProject(from: Project, to: Project, taskId: string, newParentId?: string | null): Promise<void>
   moveTasks(project: Project, taskIds: string[], newParentId: string | null): Promise<void>
+  moveTaskRows(project: Project, ids: string[], target: string, position: 'before' | 'inside' | 'after'): Promise<void>
   reorderTask(project: Project, taskId: string, targetId: string, position: 'before' | 'after'): Promise<void>
   deleteTask(project: Project, taskId: string): Promise<void>
   deleteTasks(project: Project, taskIds: string[]): Promise<void>

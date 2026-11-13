@@ -8,7 +8,7 @@ import { t } from '../i18n'
  * `subtasks` puts each subtask on a card of its own.
  */
 const BUILT_IN: Record<ViewMode, string[]> = {
-  table: ['title', 'project', 'status', 'priority', 'assignees', 'due', 'progress', 'time'],
+  table: ['title', 'project', 'status', 'priority', 'assignees', 'start', 'due', 'completed', 'progress', 'time'],
   kanban: ['priority', 'description', 'time', 'tags', 'progress', 'project', 'assignees', 'due', 'subtasks'],
   gantt: ['title', 'assignees', 'progress', 'dates', 'status', 'priority']
 }
@@ -27,7 +27,9 @@ export const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
   status: 130,
   priority: 110,
   assignees: 140,
+  start: 110,
   due: 110,
+  completed: 110,
   progress: 120,
   time: 90
 }
@@ -129,8 +131,12 @@ export function viewFieldLabel(id: string, customFields: CustomFieldDef[]): stri
       return t('columns.priority')
     case 'assignees':
       return t('columns.assignees')
+    case 'start':
+      return t('columns.start')
     case 'due':
       return t('columns.due')
+    case 'completed':
+      return t('columns.completed')
     case 'progress':
       return t('columns.progress')
     case 'time':

@@ -21,6 +21,7 @@ import {
 import { personKeyer, type ProjectRef } from '#store'
 import {
   safeAsync,
+  ChipButton,
   Avatar,
   Chip,
   EmptyState,
@@ -138,6 +139,7 @@ export class ProjectOverviewView extends ItemView {
 
   private renderMissing(): void {
     this.container.empty()
+    this.renderBreadcrumbs()
     new EmptyState(this.container).setIcon('📋').setTitle(t('project.missingTitle')).setBody(t('project.missingBody'))
   }
 
@@ -178,7 +180,8 @@ export class ProjectOverviewView extends ItemView {
   /** An archived project shows its sub-projects, which are archived with it; a live one shows the live ones. */
   private children(project: Project): ProjectRef[] {
     const archived = this.plugin.index.isArchived(project.filePath)
-    return this.plugin.index.childRefs(project.filePath, archived || this.plugin.settings.showArchivedProjects)
+    const { index, settings } = this.plugin
+    return index.orderedProjectRefs(index.childRefs(project.filePath, archived || settings.showArchivedProjects))
   }
 
   private renderArchivedBanner(project: Project): void {
@@ -238,13 +241,19 @@ export class ProjectOverviewView extends ItemView {
     return section
   }
 
-  private renderBreadcrumbs(project: Project): void {
+  private renderBreadcrumbs(project?: Project): void {
+    const bar = this.container.createDiv('pm-overview-crumbs')
+    new ChipButton(bar)
+      .setIcon('arrow-left')
+      .setLabel(t('project.backToDashboard'))
+      .setVariant('flat')
+      .onClick(safeAsync(() => this.plugin.router.openDashboard(this.leaf)))
+    if (!project) return
     const chain: ProjectRef[] = []
     for (let ref = this.plugin.index.parentOf(project.filePath); ref; ref = this.plugin.index.parentOf(ref.path)) {
       chain.unshift(ref)
     }
     if (chain.length === 0) return
-    const bar = this.container.createDiv('pm-overview-crumbs')
     for (const crumb of chain) {
       const link = bar.createSpan({ cls: 'pm-overview-crumb', text: crumb.title })
       link.addEventListener(

@@ -64,7 +64,7 @@ function model(overrides: Partial<ViewModel> = {}): ViewModel {
         color: '#767491',
         icon: '📦',
         config: CONFIG,
-        tasks: [makeTask({ id: 'b', title: 'Beta task', status: 'done', due: '2030-02-01' })]
+        tasks: [makeTask({ id: 'b', title: 'Beta task', status: 'done', due: '2030-02-01', completed: '2030-02-03' })]
       }
     ],
     settings: {
@@ -98,7 +98,9 @@ describe('snapshot table', () => {
       'Status',
       'Priority',
       'Assignees',
+      'Start date',
       'Due',
+      'Actual completion',
       'Progress',
       'Time',
       'Sprint'
@@ -107,6 +109,12 @@ describe('snapshot table', () => {
     expect(rows).toEqual(['b', 'm', 'a', 'c'])
     expect(host.querySelector('tr[data-task-id="a"] .pm-task-title-text')?.textContent).toBe('Parent')
     expect(host.querySelector('tr[data-task-id="b"]')?.classList.contains('pm-table-row--done')).toBe(true)
+    expect(host.querySelectorAll('tr[data-task-id="a"] td')[headers.indexOf('Start date')].textContent).toBe(
+      'Jan 1, 30'
+    )
+    expect(host.querySelectorAll('tr[data-task-id="b"] td')[headers.indexOf('Actual completion')].textContent).toBe(
+      'Feb 3, 30'
+    )
   })
 
   it('shows the columns the view chose, in its order and at its widths', () => {

@@ -29,6 +29,8 @@ export interface ProjectRowProps {
   /** Formatted by the caller; empty when nothing in the project has a date. */
   dueLabel: string
   dueUrgency: DueUrgency
+  startLabel?: string
+  completedLabel?: string
   /** Leave it out while the list can't collapse, such as during a search: the row then has no toggle. */
   onToggleCollapsed?: () => void
   onClick: () => void
@@ -36,7 +38,7 @@ export interface ProjectRowProps {
   onActions: (e: MouseEvent) => void
 }
 
-const ROW_IGNORE_SELECTOR = 'button, .pm-chip--interactive, .pm-icon-btn, .pm-collapse-toggle'
+const ROW_IGNORE_SELECTOR = 'button, input, .pm-chip--interactive, .pm-icon-btn, .pm-collapse-toggle'
 
 export class ProjectRow {
   el: HTMLTableRowElement
@@ -109,5 +111,12 @@ function renderCell(cell: HTMLElement, field: ProjectListField, props: ProjectRo
     case 'due':
       if (props.dueLabel) renderDueChip(cell, props.dueLabel, props.dueUrgency, 'sm')
       else cell.createSpan({ cls: 'pm-project-row-empty', text: '—' })
+      return
+    case 'start':
+    case 'completed': {
+      const label = field === 'start' ? props.startLabel : props.completedLabel
+      if (label) cell.createSpan({ text: label })
+      else cell.createSpan({ cls: 'pm-project-row-empty', text: '—' })
+    }
   }
 }

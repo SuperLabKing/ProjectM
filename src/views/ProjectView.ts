@@ -47,6 +47,7 @@ import {
   boardColumns,
   boardField,
   ChipButton,
+  IconButton,
   clampZoom,
   MAX_ZOOM,
   MIN_ZOOM,
@@ -158,6 +159,7 @@ export class ProjectView extends ItemView {
   query: TaskQuery = { filter: makeDefaultFilter(), text: '' }
   activeSavedViewId: string | null = null
   sort: SortRule[] = makeDefaultSort()
+  private tableManualOrder = true
   group: GroupState = makeDefaultGroup()
   fields: ViewFields = {}
   nonWorkingDays: NonWorkingDays = {}
@@ -218,7 +220,7 @@ export class ProjectView extends ItemView {
     return {
       mode: this.currentView,
       filter: structuredClone(this.query.filter),
-      sort: structuredClone(this.sort),
+      sort: this.currentView === 'table' && this.tableManualOrder ? [] : structuredClone(this.sort),
       group: structuredClone(this.group),
       fields: structuredClone(this.fields),
       ganttGranularity: this.granularity,
@@ -391,6 +393,7 @@ export class ProjectView extends ItemView {
 
   private loadFilterFromSettings(): void {
     const saved = this.projectScope ? this.plugin.settings.projectFilters[this.projectScope.key] : undefined
+    this.tableManualOrder = saved?.tableManualOrder !== false
     if (saved) {
       this.query.filter = saved.filter
       this.activeSavedViewId = saved.activeSavedViewId
@@ -462,6 +465,7 @@ export class ProjectView extends ItemView {
       filter: this.query.filter,
       activeSavedViewId: this.activeSavedViewId,
       sort: this.sort,
+      tableManualOrder: this.tableManualOrder,
       group: this.group,
       fields: this.fields,
       ganttGranularity: this.granularity,
@@ -554,7 +558,11 @@ export class ProjectView extends ItemView {
     }
     this.zoomStepper?.setValue(`${this.zoom}%`, this.zoom <= MIN_ZOOM, this.zoom >= MAX_ZOOM)
     this.daysButton?.setActive(!!this.nonWorkingDays.weekends || !!this.nonWorkingDays.holidays)
-    if (this.sortButton) syncSortButton(this.sortButton, this.sortSummary())
+    if (this.sortButton) {
+      const manual = this.currentView === 'table' && this.tableManualOrder
+      syncSortButton(this.sortButton, manual ? undefined : this.sortSummary())
+      this.sortButton.setDetail(manual ? t('header.manualOrder') : '')
+    }
     this.header?.fit()
   }
 
@@ -632,6 +640,10 @@ export class ProjectView extends ItemView {
       }
     }
     if (kind === 'project' || kind === 'subtree') {
+      new IconButton(parent)
+        .setIcon('arrow-left')
+        .setTooltip(t('project.backToDashboard'))
+        .onClick(safeAsync(() => this.plugin.router.openDashboard(this.leaf)))
       renderBreadcrumb(parent, {
         ...common,
         icon: primary.icon,
@@ -860,6 +872,19 @@ export class ProjectView extends ItemView {
       fields: sortFields(this.projectScope?.config),
       sort: this.sort,
       onChange: sorted,
+      manualOrder:
+        this.currentView === 'table'
+          ? {
+              enabled: this.tableManualOrder,
+              onChange: (enabled) => {
+                this.tableManualOrder = enabled
+                this.syncHeader()
+                if (this.subview instanceof TableView) this.subview.setManualOrder(enabled)
+                void this.persistFilter()
+                after?.()
+              }
+            }
+          : undefined,
       onReset: () => {
         this.sort.splice(0, this.sort.length, ...structuredClone(this.activeView()?.sort ?? makeDefaultSort()))
         sorted()
@@ -933,7 +958,12 @@ export class ProjectView extends ItemView {
       query.push({
         icon: 'arrow-down-up',
         label: t('header.sort'),
-        state: sort ? `${sort.label} ${sort.more}`.trim() : '',
+        state:
+          this.currentView === 'table' && this.tableManualOrder
+            ? t('header.manualOrder')
+            : sort
+              ? `${sort.label} ${sort.more}`.trim()
+              : '',
         onOpen: (anchor) => this.openSort(anchor)
       })
     }
@@ -1515,6 +1545,7 @@ export class ProjectView extends ItemView {
           () => this.refreshProject(),
           this.query,
           this.sort,
+          this.tableManualOrder,
           safeAsync(async () => {
             this.syncHeader()
             await this.persistFilter()

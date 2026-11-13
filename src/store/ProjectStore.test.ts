@@ -1225,6 +1225,69 @@ describe('ProjectStore bulk mutators', () => {
     expect(content.indexOf('[[two|two]]')).toBeLessThan(content.indexOf('[[one|one]]'))
   })
 
+  it('moves a task subtree into position and back to the top level without accepting a cycle', async () => {
+    const { store, app } = newStore()
+    const project = await store.createProject('Drag', 'Projects')
+    const parent = await addNamed(store, project, 'Parent')
+    const sibling = await addNamed(store, project, 'Sibling', parent.id)
+    const moving = await addNamed(store, project, 'Moving')
+    const child = await addNamed(store, project, 'Child', moving.id)
+    await store.moveTask(project, moving.id, parent.id, { taskId: sibling.id, position: 'before' })
+    expect(parent.subtasks.map((task) => task.id)).toEqual([moving.id, sibling.id])
+    await store.moveTask(project, parent.id, child.id)
+    expect(project.tasks.map((task) => task.id)).toEqual([parent.id])
+    await store.moveTask(project, moving.id, null, { taskId: parent.id, position: 'before' })
+
+    const cold = new ProjectStore(app, () => SETTINGS)
+    const restored = expectDefined(await cold.loadProjectByPath(project.filePath))
+    expect(restored.tasks.map((task) => task.id)).toEqual([moving.id, parent.id])
+    expect(restored.tasks[0].subtasks.map((task) => task.id)).toEqual([child.id])
+    expect(restored.tasks[1].subtasks.map((task) => task.id)).toEqual([sibling.id])
+  })
+
+  it('moves mixed rows together and keeps links at their old position when an anchor task leaves', async () => {
+    const { store, app } = newStore()
+    const project = await store.createProject('Mixed order', 'Projects')
+    const source = await addNamed(store, project, 'Source')
+    const target = await addNamed(store, project, 'Target')
+    const moving = await addNamed(store, project, 'Moving', source.id)
+    const remaining = await addNamed(store, project, 'Remaining', source.id)
+    await store.updateLinkedNotes(project, () => [
+      { id: 'stay', note: '[[Stay]]', parentId: source.id, beforeTaskId: moving.id, status: 'todo' },
+      { id: 'move', note: '[[Move]]', parentId: source.id, beforeTaskId: moving.id, status: 'todo' }
+    ])
+
+    await store.moveTaskRows(project, [moving.id, 'projectm-link:move'], target.id, 'inside')
+
+    const cold = new ProjectStore(app, () => SETTINGS)
+    const reopened = expectDefined(await cold.loadProjectByPath(project.filePath))
+    expect(reopened.taskIndex.get(moving.id)?.parentId).toBe(target.id)
+    expect(reopened.linkedNotes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'move', parentId: target.id, beforeTaskId: moving.id }),
+        expect.objectContaining({ id: 'stay', parentId: source.id, beforeTaskId: remaining.id })
+      ])
+    )
+  })
+
+  it('moves a project by editing its parent link and refuses circular project links', async () => {
+    const { store, app } = newStore()
+    const parent = await store.createProject('Root', 'Projects')
+    const child = await store.createProject('Child', 'Projects')
+    const task = await addNamed(store, child, 'A task')
+    const taskFile = fileAt(app, expectDefined(task.filePath))
+    const body = await app.vault.read(taskFile)
+
+    expect(await store.moveProject(child, parent.filePath)).toBe(true)
+    expect(await store.moveProject(parent, child.filePath)).toBe(false)
+    const cold = new ProjectStore(app, () => SETTINGS)
+    expect((await cold.loadProjectByPath(child.filePath))?.parentPath).toBe(parent.filePath)
+    expect(await store.moveProject(child, null)).toBe(true)
+    const reopened = new ProjectStore(app, () => SETTINGS)
+    expect((await reopened.loadProjectByPath(child.filePath))?.parentPath).toBeUndefined()
+    expect(await app.vault.read(taskFile)).toBe(body)
+  })
+
   it('writes tasks that have no file yet even when nothing marked them dirty', async () => {
     const { store, vault } = newStore()
     const project = await store.createProject('Net', 'Projects')

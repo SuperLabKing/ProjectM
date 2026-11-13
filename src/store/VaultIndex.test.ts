@@ -55,6 +55,39 @@ describe('VaultIndex', () => {
     expect(index.projectPaths()).toEqual(['Projects/Roadmap.md'])
   })
 
+  it('rolls up scheduled starts and shows actual completion only when every counted task has finished', async () => {
+    const root = 'Projects/Roadmap/Roadmap.md'
+    await vault.create(root, projectNote('p1', 'Roadmap'))
+    await vault.create('Projects/Detail.md', projectNote('p2', 'Detail', 'parent: "[[Roadmap]]"\n'))
+    const withDates = (source: string, dates: string): string => source.replace('\n---\n\n', `\n${dates}\n---\n\n`)
+    await vault.create(
+      'Tasks/one.md',
+      withDates(taskNote('t1', 'One', 'p1', 'done'), 'start: 2026-10-06\ncompleted: 2026-10-08')
+    )
+    const second = await vault.create(
+      'Tasks/two.md',
+      withDates(taskNote('t2', 'Two', 'p2', 'done'), 'start: 2026-10-03\ncompleted: 2026-10-12')
+    )
+    await vault.create(
+      'Projects/Roadmap/_tasks/Archive/old.md',
+      withDates(taskNote('old', 'Old', 'p1'), 'start: 2026-01-01')
+    )
+    index.build()
+    const dates = () => index.projectDates(expectDefined(index.projectRef(root)))
+    expect(dates()).toEqual({ start: '2026-10-03', completed: '2026-10-12' })
+
+    await vault.modify(
+      second,
+      withDates(taskNote('t2', 'Two', 'p2', 'todo'), 'start: 2026-10-03\ncompleted: 2026-10-12')
+    )
+    index.build()
+    expect(dates()).toEqual({ start: '2026-10-03', completed: '' })
+
+    await vault.modify(second, withDates(taskNote('t2', 'Two', 'p2', 'done'), 'start: invalid'))
+    index.build()
+    expect(dates()).toEqual({ start: '2026-10-06', completed: '' })
+  })
+
   it('attributes tasks in a project folder to that project, and nests sub-projects', async () => {
     await vault.create('Projects/Roadmap/Roadmap.md', projectNote('p1', 'Roadmap'))
     await vault.create('Projects/Roadmap/_tasks/one.md', taskNote('t1', 'One', 'p1'))

@@ -76,6 +76,7 @@ export class DashboardView extends ItemView {
   /** Search text lives as long as this view and is never saved. */
   private text = ''
   private collapsedGroups = new Set<string>()
+  private selectedProjects = new Set<string>()
   private viewSlot: SavedViewSlot | null = null
   private filterButton: ChipButton | null = null
   private archivedButton: ChipButton | null = null
@@ -277,6 +278,13 @@ export class DashboardView extends ItemView {
       fields: sortFields(),
       sort: this.state.sort,
       onChange: sorted,
+      manualOrder: {
+        enabled: this.plugin.settings.projectManualOrder !== false,
+        onChange: (enabled) => {
+          this.plugin.settings.projectManualOrder = enabled
+          sorted()
+        }
+      },
       onReset: () => {
         const { sort } = this.state
         sort.splice(0, sort.length, ...structuredClone(this.activeView()?.sort ?? []))
@@ -400,7 +408,12 @@ export class DashboardView extends ItemView {
       {
         icon: 'arrow-down-up',
         label: t('header.sort'),
-        state: sort ? `${sort.label} ${sort.more}`.trim() : '',
+        state:
+          settings.projectManualOrder !== false
+            ? t('header.manualOrder')
+            : sort
+              ? `${sort.label} ${sort.more}`.trim()
+              : '',
         onOpen: (anchor) => this.openSort(anchor)
       },
       {
@@ -428,7 +441,8 @@ export class DashboardView extends ItemView {
   private renderList(): void {
     const { plugin } = this
     this.items = projectListItems(plugin)
-    const { groups, shown, total } = arrangeProjects(this.items, this.state, this.text, (path) =>
+    const state = plugin.settings.projectManualOrder === false ? this.state : { ...this.state, sort: [] }
+    const { groups, shown, total } = arrangeProjects(this.items, state, this.text, (path) =>
       plugin.isProjectCollapsed(path)
     )
     this.shown = shown
@@ -455,7 +469,9 @@ export class DashboardView extends ItemView {
       plugin,
       contentEl: this.bodyEl,
       fields: this.shownFields(),
-      openProject: (path) => plugin.router.openProjectLink(path),
+      selectedProjects: this.selectedProjects,
+      openProject: (path, tab = plugin.settings.projectTab) =>
+        plugin.router.openProjectLink(path, tab === 'current' ? this.leaf : undefined),
       redraw: () => this.renderList()
     }
     renderProjectTable(ctx, groups, this.state.group, this.collapsedGroups)
@@ -496,7 +512,11 @@ export class DashboardView extends ItemView {
     const hasArchived = index.projectRefs(true).length > index.projectRefs().length
     this.archivedButton?.setActive(settings.showArchivedProjects)
     this.archivedButton?.el.toggleClass('pm-hidden', !hasArchived && !settings.showArchivedProjects)
-    if (this.sortButton) syncSortButton(this.sortButton, summarizeSort(sortFields(), this.state.sort))
+    if (this.sortButton) {
+      const manual = this.plugin.settings.projectManualOrder !== false
+      syncSortButton(this.sortButton, manual ? undefined : summarizeSort(sortFields(), this.state.sort))
+      this.sortButton.setDetail(manual ? t('header.manualOrder') : '')
+    }
     const grouped = this.state.group !== 'none'
     this.groupButton?.setLabel(grouped ? groupLabel(this.state.group) : t('header.group')).setActive(grouped)
     this.fieldsButton?.setDetail(this.hiddenFieldsLabel()).setActive(this.state.fields !== undefined)

@@ -25,6 +25,7 @@ import {
   rebuildTaskIndex,
   reconcileLinkedParents,
   readLinkedNotes,
+  planTaskRowMove,
   addTaskToTree,
   cloneTaskForest,
   cloneTaskSubtree,
@@ -683,6 +684,58 @@ export class ProjectStore implements TaskSource {
     await this.saveProject(project)
   }
 
+  /** Reparent through the existing project metadata without relocating the project files. */
+  async moveProject(project: Project, parentPath: string | null): Promise<boolean> {
+    return this.moveProjects([project], parentPath)
+  }
+
+  async moveProjects(projects: Project[], parentPath: string | null): Promise<boolean> {
+    return this.queue('project-hierarchy', async () => {
+      const seen = new Set(projects.map((project) => project.filePath))
+      let path = parentPath
+      while (path) {
+        if (seen.has(path)) return false
+        seen.add(path)
+        const ancestor = await this.loadProjectByPath(path)
+        if (!ancestor) return false
+        path = ancestor.parentPath ?? null
+      }
+      const moves = projects
+        .filter((project) => (project.parentPath ?? null) !== parentPath)
+        .map((project) => ({
+          project,
+          file: this.app.vault.getAbstractFileByPath(project.filePath),
+          previous: project.parentPath ?? null
+        }))
+      if (moves.some(({ file }) => !(file instanceof TFile))) return false
+      const write = async ({ project, file }: (typeof moves)[number], parent: string | null): Promise<void> => {
+        if (!(file instanceof TFile)) throw new Error(`Missing project file: ${project.filePath}`)
+        await this.queue(project.filePath, async () => {
+          this.markSelfWrite(project.filePath)
+          await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+            if (parent) fm.parent = `[[${parent.replace(/\.md$/, '')}]]`
+            else Reflect.deleteProperty(fm, 'parent')
+          })
+          project.parentPath = parent ?? undefined
+          this.emitChange(project.filePath)
+        })
+      }
+      const applied: typeof moves = []
+      try {
+        for (const move of moves) {
+          await write(move, parentPath)
+          applied.push(move)
+        }
+      } catch (error) {
+        const rollback = await Promise.allSettled(applied.map((move) => write(move, move.previous)))
+        const failures = rollback.flatMap((result) => (result.status === 'rejected' ? [result.reason] : []))
+        if (failures.length) throw new AggregateError([error, ...failures], 'Could not restore project parents')
+        throw error
+      }
+      return true
+    })
+  }
+
   /** A title edited in the settings view takes the note, and the folder it owns, with it. */
   private async renameProjectFile(project: Project, currentPath: string): Promise<void> {
     const file = this.app.vault.getAbstractFileByPath(currentPath)
@@ -1306,18 +1359,69 @@ export class ProjectStore implements TaskSource {
     await this.saveProject(to)
   }
 
-  async moveTask(project: Project, taskId: string, newParentId: string | null): Promise<void> {
+  async moveTask(
+    project: Project,
+    taskId: string,
+    newParentId: string | null,
+    placement?: { taskId: string; position: 'before' | 'after' }
+  ): Promise<void> {
     const task = findTaskById(project, taskId)
     if (!task) return
     const oldParentId = findParentId(project, taskId)
+    const seen = new Set([taskId])
+    for (let id = newParentId; id;) {
+      const entry = project.taskIndex.get(id)
+      if (!entry || seen.has(id)) return
+      seen.add(id)
+      id = entry.parentId
+    }
+    if (placement) {
+      const target = project.taskIndex.get(placement.taskId)
+      if (!target || placement.taskId === taskId || target.parentId !== newParentId) return
+      if (oldParentId === newParentId) {
+        await this.reorderTask(project, taskId, placement.taskId, placement.position)
+        return
+      }
+    }
     deleteTaskFromTree(project.tasks, taskId)
     addTaskToTree(project.tasks, task, newParentId)
     indexSetParent(project, taskId, newParentId)
+    if (placement) moveTaskInTree(project.tasks, taskId, placement.taskId, placement.position)
     // The moved task's Parent link and both parents' Subtasks lists live in the body.
     this.markDirty(project, [taskId], 'full')
     if (oldParentId) this.markDirty(project, [oldParentId], 'full')
     if (newParentId) this.markDirty(project, [newParentId], 'full')
     await this.saveProject(project)
+  }
+
+  async moveTaskRows(
+    project: Project,
+    ids: string[],
+    target: string,
+    position: 'before' | 'inside' | 'after'
+  ): Promise<void> {
+    await this.queue(project.filePath, async () => {
+      const plan = planTaskRowMove(project, ids, target, position)
+      if (!plan) return
+      const { taskIds, beforeTaskId, notes } = plan
+      const parentId = plan.parentId && project.taskIndex.has(plan.parentId) ? plan.parentId : null
+      const destination = parentId ? project.taskIndex.get(parentId)?.task.subtasks : project.tasks
+      const tasks = taskIds.flatMap((id) => project.taskIndex.get(id)?.task ?? [])
+      if (!destination || tasks.length !== taskIds.length) return
+      for (const task of tasks) {
+        const oldParentId = findParentId(project, task.id)
+        deleteTaskFromTree(project.tasks, task.id)
+        if (oldParentId === parentId) continue
+        indexSetParent(project, task.id, parentId)
+        this.markDirty(project, [task.id], 'full')
+        if (oldParentId) this.markDirty(project, [oldParentId], 'full')
+      }
+      const at = beforeTaskId ? destination.findIndex((task) => task.id === beforeTaskId) : destination.length
+      destination.splice(at, 0, ...tasks)
+      if (tasks.length && parentId) this.markDirty(project, [parentId], 'full')
+      if (notes) project.linkedNotes = notes
+      await this.doSaveProject(project)
+    })
   }
 
   async moveTasks(project: Project, taskIds: string[], newParentId: string | null): Promise<void> {

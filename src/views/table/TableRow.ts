@@ -127,6 +127,10 @@ export function renderTaskRow(tbody: HTMLElement, flat: TableTreeRow, ctx: Table
       case 'assignees':
         new AssigneesCell(row, linkedRefs(ctx.plugin.app, task.assignees, task.filePath ?? project.filePath))
         break
+      case 'start':
+      case 'completed':
+        new CustomFieldCell(row, { kind: 'text', text: formatDateLong(task[column]) })
+        break
       case 'due':
         new DueDateCell(row, {
           task,
@@ -166,6 +170,7 @@ export function renderTaskRow(tbody: HTMLElement, flat: TableTreeRow, ctx: Table
       menu.showAtMouseEvent(e)
     }
   })
+  ctx.state.rowDrag?.attach(row, task.id)
 }
 
 function renderTitleCell(row: HTMLElement, flat: TableTreeRow, project: Project, ctx: TableContext): void {

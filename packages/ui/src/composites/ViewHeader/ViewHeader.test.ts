@@ -489,6 +489,27 @@ describe('sort popover', () => {
     document.body.querySelector<HTMLButtonElement>('.pm-sort-pop .pm-pop-head-action')?.click()
     expect(onReset).toHaveBeenCalled()
   })
+
+  it('keeps field rules when switching to and from manual order', () => {
+    const sort: SortRule[] = [{ key: 'title', dir: 'desc' }]
+    const onChange = vi.fn<(enabled: boolean) => void>()
+    openSortPopover(document.body.createEl('button'), {
+      fields: [{ id: 'title', label: 'Task' }],
+      sort,
+      onChange: noop,
+      onReset: noop,
+      manualOrder: { enabled: true, onChange }
+    })
+    const toggle = () => document.body.querySelector<HTMLInputElement>('.pm-sort-mode input')
+    expect(toggle()?.checked).toBe(true)
+    expect(selects('pm-sort-field')).toHaveLength(0)
+    toggle()?.click()
+    expect(onChange).toHaveBeenLastCalledWith(false)
+    expect(selects('pm-sort-field')[0].value).toBe('title')
+    toggle()?.click()
+    expect(onChange).toHaveBeenLastCalledWith(true)
+    expect(sort).toEqual([{ key: 'title', dir: 'desc' }])
+  })
 })
 
 describe('group popover', () => {
@@ -545,6 +566,18 @@ describe('group popover', () => {
 })
 
 describe('fields popover', () => {
+  const tableLabels = [
+    'Task',
+    'Status',
+    'Priority',
+    'Assignees',
+    'Start date',
+    'Due',
+    'Actual completion',
+    'Progress',
+    'Time',
+    'Client'
+  ]
   const catalog = { customFields: [{ id: 'client', name: 'Client', type: 'text' as const }], multi: false }
   const open = (fields: ViewFields, mode: 'table' | 'kanban' = 'table') => {
     const onChange = vi.fn<() => void>()
@@ -556,7 +589,7 @@ describe('fields popover', () => {
 
   it('lists the table columns with their widths, the title locked', () => {
     open({})
-    expect(labels()).toEqual(['Task', 'Status', 'Priority', 'Assignees', 'Due', 'Progress', 'Time', 'Client'])
+    expect(labels()).toEqual(tableLabels)
     const first = document.body.find('.pm-vis-row')
     expect(first?.find('.pm-vis-lock')).not.toBeNull()
     expect(first?.find('.pm-vis-detail')?.textContent).toBe('fill')
@@ -571,7 +604,7 @@ describe('fields popover', () => {
     expect(document.body.find('.pm-fields-pop .pm-pop-head.pm-pop-section')).not.toBeNull()
     document.body.find('.pm-vis-row.is-hidden')?.querySelector<HTMLButtonElement>('.pm-vis-eye')?.click()
     expect(fields.table).toBeUndefined()
-    expect(labels()).toEqual(['Task', 'Status', 'Priority', 'Assignees', 'Due', 'Progress', 'Time', 'Client'])
+    expect(labels()).toEqual(tableLabels)
     expect(onChange).toHaveBeenCalledTimes(2)
   })
 
@@ -679,7 +712,7 @@ describe('project fields popover', () => {
     const onChange = vi.fn<(shown: ProjectListField[]) => void>()
     openProjectFieldsPopover(document.body.createEl('button'), { shown: ['progress', 'tasks', 'due'], onChange })
     expect(ids('.pm-vis-row:not(.is-hidden)')).toEqual(['project', 'progress', 'tasks', 'due'])
-    expect(ids('.pm-vis-row.is-hidden')).toEqual(['members'])
+    expect(ids('.pm-vis-row.is-hidden')).toEqual(['members', 'start', 'completed'])
     expect(document.body.find('.pm-vis-row')?.find('.pm-vis-eye')).toBeNull()
 
     document.body.find('.pm-vis-row[data-id="tasks"]')?.querySelector<HTMLButtonElement>('.pm-vis-eye')?.click()
@@ -688,11 +721,9 @@ describe('project fields popover', () => {
     expect(onChange).toHaveBeenLastCalledWith(['progress', 'members', 'due'])
     document.body.find('.pm-vis-row[data-id="tasks"]')?.querySelector<HTMLButtonElement>('.pm-vis-eye')?.click()
     expect(onChange).toHaveBeenLastCalledWith(['progress', 'tasks', 'members', 'due'])
-    expect(document.body.querySelector<HTMLButtonElement>('.pm-fields-foot .pm-chip-btn')?.disabled).toBe(true)
-
-    document.body.find('.pm-vis-row[data-id="due"]')?.querySelector<HTMLButtonElement>('.pm-vis-eye')?.click()
     document.body.find('.pm-fields-foot .pm-chip-btn')?.click()
-    expect(onChange).toHaveBeenLastCalledWith(['progress', 'tasks', 'members', 'due'])
+    expect(onChange).toHaveBeenLastCalledWith(['progress', 'tasks', 'members', 'start', 'due', 'completed'])
+    expect(document.body.querySelector<HTMLButtonElement>('.pm-fields-foot .pm-chip-btn')?.disabled).toBe(true)
   })
 })
 

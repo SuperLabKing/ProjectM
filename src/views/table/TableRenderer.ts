@@ -16,6 +16,8 @@ import {
   viewFieldLabel,
   flattenTasks,
   findTaskById,
+  LINKED_ROW_PREFIX,
+  planTaskRowMove,
   applyTaskFilterFlat,
   isQueryActive,
   t
@@ -25,6 +27,7 @@ import { renderAddButton, childTreeGuides, compareTasks } from '@dotpm/ui'
 import { openTaskModal } from '#ui/ModalFactory'
 import { openAddTask } from '../addTask'
 import { renderTaskRow, updateSelectedRow, updateSelectAllCheckbox } from './TableRow'
+import { TreeRowDrag, type TreeDrop } from '../TreeRowDrag'
 
 /** A display row plus what the tree connectors need to know about its siblings. */
 export interface TableTreeRow extends FlatTask {
@@ -38,6 +41,7 @@ export interface TableState {
   query: TaskQuery
   selectedTaskId: string | null
   selectedTaskIds: Set<string>
+  selectedLinkedRowIds: Set<string>
   lastCheckedTaskId: string | null
   tableBody: HTMLElement | null
   wrapper: HTMLElement | null
@@ -51,6 +55,7 @@ export interface TableState {
   windowStart: number
   windowEnd: number
   renderWindow: (() => void) | null
+  rowDrag?: TreeRowDrag
 }
 
 export interface TableContext {
@@ -66,6 +71,7 @@ export interface TableContext {
   collapsedIds: ReadonlySet<string>
   /** The field ids the table shows, in order, and the view's fields their widths come from. */
   columns: string[]
+  manualOrder: boolean
   fields: ViewFields
   state: TableState
   onRefresh: () => Promise<void>
@@ -88,6 +94,7 @@ export function renderTable(ctx: TableContext): void {
     scrollScheduled = true
     window.requestAnimationFrame(() => {
       scrollScheduled = false
+      if (ctx.state.rowDrag?.isPreviewing()) return
       // Rebuilding the tbody nudges scrollTop near the edges, firing another scroll
       // event; repainting only on a real move stops that feeding back forever.
       const { start, end } = computeWindow(ctx.state)
@@ -96,6 +103,16 @@ export function renderTable(ctx: TableContext): void {
     })
   })
   const table = wrapper.createEl('table', { cls: 'pm-table' })
+  ctx.state.rowDrag = ctx.manualOrder
+    ? new TreeRowDrag(
+        (sources, target, position) => taskRowDrop(ctx, sources, target, position),
+        (sources, target, position) => moveTaskRows(ctx, sources, target, position),
+        (id) => {
+          const selected = new Set([...ctx.state.selectedTaskIds, ...ctx.state.selectedLinkedRowIds])
+          return selected.has(id) ? [...selected] : [id]
+        }
+      )
+    : undefined
 
   const thead = table.createEl('thead')
   const hrow = thead.createEl('tr')
@@ -135,7 +152,7 @@ export function renderTable(ctx: TableContext): void {
     const th = hrow.createEl('th')
     const width = columnWidth(ctx.fields, id)
     th.setCssStyles({ width: width === undefined ? 'auto' : `${width}px` })
-    const key = SORT_KEYS.find((k) => k === id)
+    const key = ctx.manualOrder ? undefined : SORT_KEYS.find((k) => k === id)
     if (key) {
       th.addClass('pm-table-th-sortable')
       th.setAttribute('role', 'button')
@@ -175,6 +192,7 @@ export function renderTable(ctx: TableContext): void {
 
   ctx.state.resizeObserver?.disconnect()
   ctx.state.resizeObserver = new ResizeObserver(() => {
+    if (ctx.state.rowDrag?.isPreviewing()) return
     const before = ctx.state.rowHeight
     calibrateRowHeight(ctx)
     if (ctx.state.rowHeight !== before) return
@@ -183,6 +201,45 @@ export function renderTable(ctx: TableContext): void {
     ctx.state.renderWindow?.()
   })
   ctx.state.resizeObserver.observe(wrapper)
+}
+
+function taskRowDrop(ctx: TableContext, sources: string[], target: string, position: TreeDrop) {
+  const owner = (id: string) =>
+    id.startsWith(LINKED_ROW_PREFIX)
+      ? ctx.scope.spec.kind === 'project'
+        ? ctx.scope.primary
+        : null
+      : ctx.scope.projectOf(id)
+  const project = owner(target)
+  if (!project || sources.some((id) => owner(id) !== project)) return null
+  const plan = planTaskRowMove(project, sources, target, position)
+  if (!plan) return null
+  const parent = plan.parentId
+  const linked = parent?.startsWith(LINKED_ROW_PREFIX)
+    ? project.linkedNotes?.find((note) => note.id === parent.slice(LINKED_ROW_PREFIX.length))
+    : undefined
+  const linkPath = linked?.note.slice(2, -2).split('|')[0]
+  const parentTitle = linkPath
+    ? (ctx.plugin.app.metadataCache.getFirstLinkpathDest(linkPath, project.filePath)?.basename ??
+      linkPath.split('/').at(-1)?.replace(/\.md$/i, ''))
+    : parent
+      ? project.taskIndex.get(parent)?.task.title
+      : undefined
+  return { project, parent, parentTitle, changesParent: plan.changesParent }
+}
+
+async function moveTaskRows(ctx: TableContext, sources: string[], target: string, position: TreeDrop): Promise<void> {
+  const { plugin } = ctx
+  const drop = taskRowDrop(ctx, sources, target, position)
+  if (!drop) return
+  const { project, parent } = drop
+  await plugin.store.moveTaskRows(project, sources, target, position)
+  const collapsed = plugin.settings.collapsedTasks[project.filePath]
+  if (parent && collapsed?.includes(parent)) {
+    plugin.settings.collapsedTasks[project.filePath] = collapsed.filter((id) => id !== parent)
+    await plugin.saveSettings()
+  }
+  await ctx.onRefresh()
 }
 
 /**
@@ -265,8 +322,10 @@ function fillTableBody(ctx: TableContext): void {
     }
     list.push(f)
   }
-  for (const list of childrenByParent.values()) {
-    list.sort((a, b) => compareTasks(a.task, b.task, ctx.state.sort, ctx.statuses, ctx.priorities))
+  if (!ctx.manualOrder) {
+    for (const list of childrenByParent.values()) {
+      list.sort((a, b) => compareTasks(a.task, b.task, ctx.state.sort, ctx.statuses, ctx.priorities))
+    }
   }
 
   const sorted: TableTreeRow[] = []
@@ -356,7 +415,7 @@ async function remeasureOnceFontsLoad(ctx: TableContext): Promise<void> {
 function calibrateRowHeight(ctx: TableContext): void {
   const { state } = ctx
   const tbody = state.tableBody
-  if (state.calibrating || !tbody) return
+  if (state.calibrating || state.rowDrag?.isPreviewing() || !tbody) return
 
   const rows = Array.from(tbody.querySelectorAll<HTMLElement>('tr[data-task-id]'))
   if (!rows.length) return
@@ -399,8 +458,9 @@ export function handleTableKeyDown(e: KeyboardEvent, ctx: TableContext): void {
       active.blur()
       return
     }
-    if (ctx.state.selectedTaskIds.size > 0) {
+    if (ctx.state.selectedTaskIds.size > 0 || ctx.state.selectedLinkedRowIds.size > 0) {
       ctx.state.selectedTaskIds.clear()
+      ctx.state.selectedLinkedRowIds.clear()
       updateSelectCheckboxes(ctx.state)
       ctx.onSelectionChange()
       return

@@ -5,6 +5,7 @@ import {
   type PMSettings,
   type StatusConfig,
   today,
+  parsePlainDate,
   reaches,
   FRONTMATTER_KEY,
   TASK_FRONTMATTER_KEY,
@@ -227,6 +228,14 @@ export class VaultIndex {
       .sort((a, b) => a.title.localeCompare(b.title, locale()))
   }
 
+  /** Manual order applies within each sibling list, independently of file names. */
+  orderedProjectRefs(refs: ProjectRef[]): ProjectRef[] {
+    const order = this.getSettings().projectOrder
+    if (!order?.length || refs.length < 2) return refs
+    const rank = new Map(order.map((id, i) => [id, i]))
+    return [...refs].sort((a, b) => (rank.get(a.id) ?? Infinity) - (rank.get(b.id) ?? Infinity))
+  }
+
   /** Archived on its own note or through any ancestor. */
   isArchived(path: string): boolean {
     return this.tree().archived.has(normalizePath(path))
@@ -281,6 +290,24 @@ export class VaultIndex {
       if (summary.latestDue > totals.latestDue) totals.latestDue = summary.latestDue
     }
     return totals
+  }
+
+  /** Roll up the same tasks and descendants as the dashboard progress. */
+  projectDates(ref: ProjectRef): { start: string; completed: string } {
+    let start = ''
+    let latestCompleted = ''
+    let allDatedAndComplete = true
+    for (const project of [ref, ...this.descendantRefs(ref.path, this.isArchived(ref.path))]) {
+      const complete = this.completeStatuses(project)
+      for (const task of this.countableTasks(project)) {
+        const startDate = parsePlainDate(task.start)?.toString()
+        if (startDate && (!start || startDate < start)) start = startDate
+        const completedDate = complete.has(task.status) ? parsePlainDate(task.completed)?.toString() : undefined
+        if (!completedDate) allDatedAndComplete = false
+        else if (completedDate > latestCompleted) latestCompleted = completedDate
+      }
+    }
+    return { start, completed: allDatedAndComplete ? latestCompleted : '' }
   }
 
   /**

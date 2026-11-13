@@ -55,6 +55,7 @@ export class TaskEditor {
   private saveKeyHandler: KeymapEventHandler | null = null
   private containerEl: HTMLElement | null = null
   private titleInput: HTMLTextAreaElement | null = null
+  private subtasksPreview: Component | null = null
 
   constructor(
     private app: App,
@@ -130,6 +131,8 @@ export class TaskEditor {
     this.noteSuggest = null
     this.descResizeObserver?.disconnect()
     this.descResizeObserver = null
+    this.subtasksPreview?.unload()
+    this.subtasksPreview = null
     this.containerEl?.empty()
   }
 
@@ -610,9 +613,21 @@ export class TaskEditor {
       window.setTimeout(autoResize, 0)
     }
 
-    renderSubtasksPanel(body, this.task, this.plugin.store.configFor(this.project).statuses, (path) =>
-      this.openLinkedTask(path)
-    )
+    this.subtasksPreview?.unload()
+    const subtasksPreview = new Component()
+    subtasksPreview.load()
+    this.subtasksPreview = subtasksPreview
+    renderSubtasksPanel(body, this.task, this.plugin.store.configFor(this.project).statuses, {
+      app: this.app,
+      component: subtasksPreview,
+      loadDescription: async (subtask) => {
+        if (!subtask.filePath) return subtask.description
+        const preview = { ...subtask }
+        await this.plugin.store.loadTaskBody(preview)
+        return preview.description
+      },
+      openSubtask: (path) => this.openLinkedTask(path)
+    })
 
     renderTimeTrackingPanel(body, this.task)
 

@@ -19,6 +19,8 @@ function item(title: string, overrides: Partial<ProjectListItem> = {}): ProjectL
     total: 0,
     overdue: 0,
     latestDue: '',
+    start: '',
+    completed: '',
     children: [],
     ...overrides
   }
@@ -125,7 +127,7 @@ describe('project helpers', () => {
 
 describe('tidyProjectFields', () => {
   it('drops the list once every column shows in the default order', () => {
-    expect(tidyProjectFields(['progress', 'tasks', 'members', 'due'])).toBeUndefined()
+    expect(tidyProjectFields(['progress', 'tasks', 'members', 'start', 'due', 'completed'])).toBeUndefined()
     expect(tidyProjectFields(undefined)).toBeUndefined()
   })
 

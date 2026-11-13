@@ -22,6 +22,8 @@ export interface ProjectListItem {
   total: number
   overdue: number
   latestDue: string
+  start: string
+  completed: string
   children: ProjectListItem[]
 }
 

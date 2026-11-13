@@ -15,7 +15,9 @@ export const projectFieldLabel = (field: ProjectListField): string =>
     progress: t('columns.progress'),
     tasks: t('columns.tasks'),
     members: t('columns.members'),
-    due: t('columns.due')
+    start: t('columns.start'),
+    due: t('columns.due'),
+    completed: t('columns.completed')
   })[field]
 
 const asFields = (ids: string[]): ProjectListField[] =>

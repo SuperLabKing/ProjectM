@@ -177,6 +177,10 @@ export function renderSnapshotTable(container: HTMLElement, model: ViewModel): H
         case 'due':
           new DueDateCell(row, { task, urgency: dueUrgency(task, ownConfig.statuses), onSave: noSave })
           break
+        case 'start':
+        case 'completed':
+          new CustomFieldCell(row, { kind: 'text', text: formatDateLong(task[id]) })
+          break
         case 'progress':
           new ProgressCell(row, {
             value: task.progress,

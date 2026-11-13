@@ -60,11 +60,12 @@
   padding: 8px 16px 24px;
 }
 
-.pm-project-th-title {
-  width: 100%;
+.pm-project-table {
+  table-layout: fixed;
 }
 .pm-project-table td {
   white-space: nowrap;
+  overflow: hidden;
 }
 .pm-project-row {
   cursor: pointer;
@@ -73,7 +74,7 @@
 /* The title column takes what the others leave, and its name truncates beside the icon
    rather than wrapping under it; the columns after it scroll. */
 .pm-project-table .pm-table-cell-title {
-  max-width: 0;
+  min-width: 0;
 }
 .pm-project-table .pm-table-title-inner {
   flex-wrap: nowrap;
@@ -82,6 +83,21 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.pm-project-table .pm-table-resize {
+  width: 8px;
+  touch-action: none;
+}
+.pm-project-table .pm-table-resize:focus-visible {
+  background: var(--interactive-accent);
+}
+.pm-project-table.pm-project-table-measure {
+  position: fixed;
+  inset: 0 auto auto 0;
+  table-layout: auto;
+  width: max-content;
+  visibility: hidden;
+  pointer-events: none;
 }
 .pm-project-row-icon {
   flex-shrink: 0;

@@ -26,6 +26,7 @@ export class TableView implements SubView {
     private onRefresh: () => Promise<void>,
     query: TaskQuery,
     sort: SortRule[],
+    private manualOrder: boolean,
     private onSortChange: () => void,
     private keyScope: Scope,
     private fields: ViewFields,
@@ -36,6 +37,7 @@ export class TableView implements SubView {
       query,
       selectedTaskId: null,
       selectedTaskIds: new Set(),
+      selectedLinkedRowIds: new Set(),
       lastCheckedTaskId: null,
       tableBody: null,
       wrapper: null,
@@ -61,6 +63,13 @@ export class TableView implements SubView {
 
   setPendingScrollTop(top: number): void {
     this.pendingScrollTop = top
+  }
+
+  setManualOrder(enabled: boolean): void {
+    this.manualOrder = enabled
+    if (!enabled) this.state.selectedLinkedRowIds.clear()
+    this.setPendingScrollTop(this.getScrollTop())
+    this.render()
   }
 
   render(): void {
@@ -224,6 +233,7 @@ export class TableView implements SubView {
       lineBorders: config.lineBorders,
       collapsedIds: collapsedTaskIds(this.plugin.settings, this.scope.projects),
       columns: shownFields(this.fields, 'table', this.scope.fieldCatalog()),
+      manualOrder: this.manualOrder,
       fields: this.fields,
       state: this.state,
       onRefresh: this.onRefresh,

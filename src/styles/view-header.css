@@ -599,6 +599,18 @@ button.pm-filter-chip-remove {
   white-space: normal;
 }
 
+.pm-sort-mode {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 8px;
+  font-size: var(--font-ui-small);
+  cursor: pointer;
+}
+.pm-sort-mode input {
+  margin: 0;
+}
 .pm-sort-row {
   display: flex;
   align-items: center;

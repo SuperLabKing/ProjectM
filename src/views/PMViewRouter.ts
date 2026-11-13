@@ -19,8 +19,8 @@ export class PMViewRouter {
     if (!leaf) await ws.revealLeaf(target)
   }
 
-  async openDashboard(): Promise<void> {
-    await this.open(PM_DASHBOARD_VIEW_TYPE, {})
+  async openDashboard(leaf?: WorkspaceLeaf): Promise<void> {
+    await this.open(PM_DASHBOARD_VIEW_TYPE, {}, leaf)
   }
 
   async openProject(file: TFile): Promise<void> {

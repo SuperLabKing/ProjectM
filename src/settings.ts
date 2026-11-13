@@ -68,6 +68,15 @@ export class PMSettingTab extends PluginSettingTab {
             }
           },
           {
+            name: t('settings.projectTab.name'),
+            desc: t('settings.projectTab.desc'),
+            control: {
+              type: 'dropdown',
+              key: 'projectTab',
+              options: { new: t('project.openInNewTab'), current: t('project.openInCurrentTab') }
+            }
+          },
+          {
             name: t('settings.defaultView.name'),
             desc: t('settings.defaultView.desc'),
             aliases: ['default view'],

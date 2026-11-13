@@ -20,6 +20,7 @@ export interface SortPopoverProps<K extends string = SortKey> {
   /** Edited in place. Empty keeps the stored order. */
   sort: { key: K; dir: SortDir }[]
   onChange: () => void
+  manualOrder?: { enabled: boolean; onChange: (enabled: boolean) => void }
   /** Puts back the sort of the active view, or the default one. */
   onReset: () => void
 }
@@ -51,7 +52,7 @@ export function sortDirLabel<K extends string>(field: SortField<K>, dir: SortDir
  */
 export function renderSortPanel<K extends string>(parent: HTMLElement, props: SortPopoverProps<K>): void {
   const body = parent.createDiv('pm-sort-pop')
-  const { sort } = props
+  const { sort, manualOrder } = props
 
   const changed = (): void => {
     render()
@@ -60,6 +61,19 @@ export function renderSortPanel<K extends string>(parent: HTMLElement, props: So
 
   const render = (): void => {
     body.empty()
+    if (manualOrder) {
+      const row = body.createEl('label', { cls: 'pm-sort-mode' })
+      row.createSpan({ text: t('header.manualOrder') })
+      const toggle = row.createEl('input', { type: 'checkbox', attr: { role: 'switch' } })
+      toggle.checked = manualOrder.enabled
+      toggle.addEventListener('change', () => {
+        manualOrder.enabled = toggle.checked
+        manualOrder.onChange(toggle.checked)
+        render()
+        body.querySelector<HTMLInputElement>('input[role="switch"]')?.focus()
+      })
+      if (manualOrder.enabled) return
+    }
     renderPopHead(body, {
       title: t('header.sortBy'),
       action: {
