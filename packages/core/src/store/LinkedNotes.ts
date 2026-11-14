@@ -35,6 +35,7 @@ export function readLinkedRollups(value: unknown): Record<string, TaskStatus> {
 }
 
 export interface TaskRowPlacement {
+  movedIds: string[]
   parentId: string | null
   changesParent: boolean
   taskIds: string[]
@@ -48,7 +49,7 @@ const linkedRowId = (note: LinkedNote): string => LINKED_ROW_PREFIX + note.id
 export function planTaskRowMove(
   project: Project,
   selected: string[],
-  target: string,
+  target: string | null,
   position: 'before' | 'inside' | 'after'
 ): TaskRowPlacement | null {
   const notes = project.linkedNotes ?? []
@@ -83,8 +84,8 @@ export function planTaskRowMove(
     }
     return [...tasks.flatMap((id) => [...(buckets.get(id) ?? []), id]), ...(buckets.get(undefined) ?? [])]
   }
-  if (!project.taskIndex.has(target) && !linked.has(target)) return null
-  const parentId = position === 'inside' ? target : parentOf(target)
+  if (target === null ? position !== 'inside' : !project.taskIndex.has(target) && !linked.has(target)) return null
+  const parentId = position === 'inside' || target === null ? target : parentOf(target)
   const selectedSet = new Set(selected)
   const moving: string[] = []
   const visited = new Set<string>()
@@ -97,7 +98,7 @@ export function planTaskRowMove(
     }
   }
   visit(null)
-  if (!moving.length || selectedSet.has(target)) return null
+  if (!moving.length || (target !== null && selectedSet.has(target))) return null
   const movingSet = new Set(moving)
   const ancestors = new Set(movingSet)
   for (let id: string | null = target; id; id = parentOf(id)) {
@@ -105,14 +106,17 @@ export function planTaskRowMove(
     ancestors.add(id)
   }
   const destination = siblings(parentId).filter((id) => !movingSet.has(id))
-  const at = position === 'inside' ? destination.length : destination.indexOf(target) + Number(position === 'after')
+  const at =
+    position === 'inside' || target === null
+      ? destination.length
+      : destination.indexOf(target) + Number(position === 'after')
   destination.splice(at, 0, ...moving)
   const taskIds = moving.filter((id) => !linked.has(id))
   const changesParent = moving.some((id) => parentOf(id) !== parentId)
   const nativeParent = parentId && linked.has(parentId) ? null : parentId
   const beforeTaskId =
     nativeParent === parentId ? destination.slice(at + moving.length).find((id) => !linked.has(id)) : undefined
-  if (!notes.length) return { parentId, changesParent, taskIds, beforeTaskId }
+  if (!notes.length) return { movedIds: moving, parentId, changesParent, taskIds, beforeTaskId }
   const updated: LinkedNote[] = []
   const childOrders = new Map<string, string[]>()
   function saveSiblings(rows: string[], parent: string | null): void {
@@ -146,12 +150,12 @@ export function planTaskRowMove(
     const childTaskIds = childOrders.get(linkedRowId(note))
     return childTaskIds ? { ...note, childTaskIds } : note
   })
-  return { parentId, changesParent, taskIds, beforeTaskId, notes: reordered }
+  return { movedIds: moving, parentId, changesParent, taskIds, beforeTaskId, notes: reordered }
 }
 
 type State = 'todo' | 'start' | 'hold' | 'done' | 'cancel'
 
-function taskState(id: TaskStatus, status?: StatusConfig): State {
+export function linkedTaskState(id: TaskStatus, status?: StatusConfig): State {
   const label = status?.label ?? ''
   if (/^cancel(?:led|ed)?$/i.test(id) || /取消/.test(label)) return 'cancel'
   if (/^(blocked|hold|paused)$/i.test(id) || /搁置|暂停/.test(label)) return 'hold'
@@ -186,7 +190,7 @@ export function reconcileLinkedParents(
     }
   }
   const definitions = new Map(statuses.map((status) => [status.id, status]))
-  const stateOf = (id: TaskStatus) => taskState(id, definitions.get(id))
+  const stateOf = (id: TaskStatus) => linkedTaskState(id, definitions.get(id))
   const next: Record<string, TaskStatus> = Object.create(null)
   function visit(task: Task): void {
     for (const child of task.subtasks) visit(child)

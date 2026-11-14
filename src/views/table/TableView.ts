@@ -1,7 +1,16 @@
 import { Notice, type KeymapEventHandler, type Scope } from 'obsidian'
 import { confirmDialog } from '#ui/ModalFactory'
 import type PMPlugin from '#main'
-import { t, tn, type TaskQuery, type Project, type SortRule, type ViewFields, shownFields } from '@dotpm/core'
+import {
+  LINKED_ROW_PREFIX,
+  t,
+  tn,
+  type TaskQuery,
+  type Project,
+  type SortRule,
+  type ViewFields,
+  shownFields
+} from '@dotpm/core'
 import type { ProjectScope } from '#store'
 import { safeAsync } from '@dotpm/ui'
 import type { SubView } from '../SubView'
@@ -11,6 +20,9 @@ import type { TableState } from './TableRenderer'
 import { updateSelectAllCheckbox } from './TableRow'
 import { renderBulkActionBar } from './BulkActionBar'
 import type { BulkAction } from './BulkActionBar'
+import { groupsFor } from './ProjectTaskGroups'
+import { animateTableFold } from './animateTableFold'
+import { assignGroup, groupForRow, groupRoot, projectGroups, saveProjectGroups } from '#store/ProjectTaskGroups'
 
 const TABLE_KEYS = ['Escape', 'ArrowDown', 'ArrowUp', 'j', 'k', 'Enter', 'e', 'Delete', 'Backspace']
 
@@ -42,6 +54,9 @@ export class TableView implements SubView {
       tableBody: null,
       wrapper: null,
       visibleRows: [],
+      displayTaskIds: [],
+      displayRowIndices: new Map(),
+      windowLength: 0,
       rowHeight: ROW_HEIGHT_ESTIMATE,
       calibrating: false,
       resizeObserver: null,
@@ -61,6 +76,37 @@ export class TableView implements SubView {
     return wrapper?.scrollTop ?? 0
   }
 
+  animateLinkedFold(rowId: string, collapsed: boolean, render: () => void): Promise<void> {
+    return animateTableFold(this.state.wrapper, this.state.tableBody, rowId, collapsed, render)
+  }
+
+  linkedNoteGroupOptions(recordId?: string) {
+    const project = this.scope.spec.kind === 'project' ? this.scope.primary : null
+    if (!project) return null
+    const rowId = recordId ? LINKED_ROW_PREFIX + recordId : undefined
+    const group = rowId ? groupForRow(this.plugin, project, rowId) : undefined
+    return {
+      currentId: group?.id ?? null,
+      inherited: !!rowId && groupRoot(project, rowId) !== rowId,
+      groups: projectGroups(this.plugin, project).map(({ id, name }) => ({ id, name }))
+    }
+  }
+
+  async setLinkedNoteGroup(recordId: string, groupId: string | null): Promise<void> {
+    const project = this.scope.spec.kind === 'project' ? this.scope.primary : null
+    const rowId = LINKED_ROW_PREFIX + recordId
+    if (!project || groupRoot(project, rowId) !== rowId) return
+    if ((groupForRow(this.plugin, project, rowId)?.id ?? null) === groupId) return
+    await saveProjectGroups(this.plugin, project, (groups) => {
+      if (groupId && !groups.some((group) => group.id === groupId)) {
+        throw new Error(t('taskGroups.missing'))
+      }
+      return assignGroup(groups, new Set([rowId]), groupId)
+    })
+    await this.onRefresh()
+    this.plugin.refreshViews()
+  }
+
   setPendingScrollTop(top: number): void {
     this.pendingScrollTop = top
   }
@@ -74,6 +120,7 @@ export class TableView implements SubView {
 
   render(): void {
     this.state.tableBody = null
+    this.state.renderLinkedRow = undefined
     this.container.empty()
     this.container.addClass('pm-table-view')
 
@@ -105,9 +152,11 @@ export class TableView implements SubView {
   }
 
   private doRefreshTable(): void {
-    if (this.state.tableBody) {
-      refreshTableBody(this.makeTableContext())
+    const ctx = this.makeTableContext()
+    if (this.state.tableBody && !!this.state.rowDrag === (this.manualOrder || groupsFor(ctx).length > 0)) {
+      refreshTableBody(ctx)
     } else {
+      this.setPendingScrollTop(this.getScrollTop())
       this.render()
     }
   }

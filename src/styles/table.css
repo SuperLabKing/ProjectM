@@ -156,7 +156,7 @@ button.pm-chip-btn--active:hover {
 .pm-tree-drop-hint--inside {
   position: fixed;
   inset-inline-start: auto;
-  right: var(--pm-drop-hint-right);
+  left: var(--pm-drop-hint-left);
   top: var(--pm-drop-hint-y);
   transform: none;
   z-index: var(--layer-popover, 1000);
@@ -175,6 +175,18 @@ button.pm-chip-btn--active:hover {
 }
 .pm-tree-landing-hidden {
   visibility: hidden;
+}
+.pm-fold-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--layer-popover, 1000);
+}
+.pm-fold-layer .pm-fold-copy {
+  position: absolute;
+  table-layout: fixed;
+  margin: 0;
+  background: var(--background-primary);
 }
 .pm-table-row[data-pm-tree-drop='inside'] {
   background: color-mix(in srgb, var(--interactive-accent) 7%, var(--background-primary));
@@ -339,6 +351,16 @@ button.pm-chip-btn--active:hover {
   width: calc(var(--pm-tree-indent) / 2 + 4px);
   height: 1px;
   background: var(--background-modifier-border);
+}
+.pm-table .pm-table-cell-number {
+  width: 34px;
+  padding: 0 6px;
+  text-align: center;
+  vertical-align: middle;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .pm-table-cell-select {
   width: 32px;
@@ -618,4 +640,65 @@ button.pm-chip-rm {
 
 .pm-table-add-row td {
   padding: 8px 10px;
+}
+
+.pm-task-group-actions {
+  display: flex;
+  justify-content: flex-start;
+  padding: 0 10px 4px;
+}
+
+.pm-task-group-row td {
+  padding: 4px 10px;
+  background: var(--background-secondary);
+}
+
+.pm-task-group-row--draggable .pm-task-group-name {
+  cursor: grab;
+}
+
+.pm-task-group-row[data-pm-tree-drop='inside'] td {
+  background: color-mix(in srgb, var(--interactive-accent) 12%, var(--background-secondary));
+  box-shadow: inset 2px 0 var(--interactive-accent);
+}
+
+.pm-task-group-content {
+  display: flex;
+  min-height: 27px;
+  gap: 8px;
+  align-items: center;
+}
+
+.pm-task-group-name {
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-semibold);
+}
+
+.pm-task-group-description {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.pm-task-group-edit {
+  flex-shrink: 0;
+}
+
+.pm-task-group-progress {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  margin-inline-start: auto;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pm-task-group-progress .pm-progress {
+  width: 52px;
 }

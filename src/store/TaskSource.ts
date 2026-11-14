@@ -96,7 +96,12 @@ export interface TaskSource {
   /** Moves a task and its subtasks to another project, keeping their ids. */
   moveTaskToProject(from: Project, to: Project, taskId: string, newParentId?: string | null): Promise<void>
   moveTasks(project: Project, taskIds: string[], newParentId: string | null): Promise<void>
-  moveTaskRows(project: Project, ids: string[], target: string, position: 'before' | 'inside' | 'after'): Promise<void>
+  moveTaskRows(
+    project: Project,
+    ids: string[],
+    target: string | null,
+    position: 'before' | 'inside' | 'after'
+  ): Promise<boolean>
   reorderTask(project: Project, taskId: string, targetId: string, position: 'before' | 'after'): Promise<void>
   deleteTask(project: Project, taskId: string): Promise<void>
   deleteTasks(project: Project, taskIds: string[]): Promise<void>

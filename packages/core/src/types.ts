@@ -404,6 +404,8 @@ export interface PMSettings {
   scopeViews: Record<string, SavedView[]>
   /** Collapsed task ids per project path. Lives here so a toggle doesn't rewrite task files. */
   collapsedTasks: Record<string, string[]>
+  /** Display-only groups keyed by the stable project ID. */
+  projectTaskGroups: Record<string, ProjectTaskGroup[]>
   /** Paths of projects whose sub-projects are collapsed in the project list. */
   collapsedProjects: string[]
   /** Whether the project list shows archived projects. */
@@ -470,6 +472,15 @@ export function defaultPriorities(): PriorityConfig[] {
 export const LOCAL_API_PORT_BASE = 27140
 export const LOCAL_API_PORT_SPAN = 100
 
+export interface ProjectTaskGroup {
+  id: string
+  name: string
+  description: string
+  icon?: string
+  collapsed: boolean
+  members: string[]
+}
+
 export const DEFAULT_SETTINGS: PMSettings = {
   projectsFolder: 'Projects',
   peopleFolder: 'People',
@@ -502,6 +513,7 @@ export const DEFAULT_SETTINGS: PMSettings = {
   defaultFields: {},
   scopeViews: {},
   collapsedTasks: {},
+  projectTaskGroups: {},
   collapsedProjects: [],
   showArchivedProjects: false,
   projectList: makeDefaultProjectList(),

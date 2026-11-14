@@ -28,6 +28,17 @@ import { openTaskModal } from '#ui/ModalFactory'
 import { openAddTask } from '../addTask'
 import { renderTaskRow, updateSelectedRow, updateSelectAllCheckbox } from './TableRow'
 import { TreeRowDrag, type TreeDrop } from '../TreeRowDrag'
+import { assignGroup, saveProjectGroups } from '#store/ProjectTaskGroups'
+import {
+  groupDropLabel,
+  isGroupRow,
+  groupOf,
+  groupRows,
+  groupsFor,
+  moveGroupRows,
+  openGroupEditor,
+  renderGroupRow
+} from './ProjectTaskGroups'
 
 /** A display row plus what the tree connectors need to know about its siblings. */
 export interface TableTreeRow extends FlatTask {
@@ -47,6 +58,8 @@ export interface TableState {
   wrapper: HTMLElement | null
   /** Display list after filter/sort/collapse. Drives the virtual window and selection. */
   visibleRows: TableTreeRow[]
+  displayTaskIds: string[]
+  displayRowIndices: Map<string, number>
   /** An estimate until the painted rows are measured. */
   rowHeight: number
   calibrating: boolean
@@ -56,6 +69,8 @@ export interface TableState {
   windowEnd: number
   renderWindow: (() => void) | null
   rowDrag?: TreeRowDrag
+  renderLinkedRow?: (row: TableTreeRow) => HTMLTableRowElement | undefined
+  windowLength: number
 }
 
 export interface TableContext {
@@ -86,6 +101,10 @@ export interface TableContext {
 const HIDE_BELOW = 24
 
 export function renderTable(ctx: TableContext): void {
+  if (ctx.scope.spec.kind === 'project') {
+    const actions = ctx.container.createDiv('pm-task-group-actions')
+    renderAddButton(actions, t('taskGroups.add'), () => openGroupEditor(ctx))
+  }
   const wrapper = ctx.container.createDiv('pm-table-wrapper')
   ctx.state.wrapper = wrapper
   let scrollScheduled = false
@@ -103,19 +122,29 @@ export function renderTable(ctx: TableContext): void {
     })
   })
   const table = wrapper.createEl('table', { cls: 'pm-table' })
-  ctx.state.rowDrag = ctx.manualOrder
-    ? new TreeRowDrag(
-        (sources, target, position) => taskRowDrop(ctx, sources, target, position),
-        (sources, target, position) => moveTaskRows(ctx, sources, target, position),
-        (id) => {
-          const selected = new Set([...ctx.state.selectedTaskIds, ...ctx.state.selectedLinkedRowIds])
-          return selected.has(id) ? [...selected] : [id]
-        }
-      )
-    : undefined
+  ctx.state.rowDrag =
+    ctx.manualOrder || groupsFor(ctx).length > 0
+      ? new TreeRowDrag(
+          (sources, target, position) => {
+            const label = groupDropLabel(ctx, sources, target, position)
+            if (label) return { parent: null, changesParent: false, label }
+            if (isGroupRow(target) || sources.some(isGroupRow)) return null
+            return ctx.manualOrder ? taskRowDrop(ctx, sources, target, position) : null
+          },
+          (sources, target, position) =>
+            isGroupRow(target) || sources.some(isGroupRow)
+              ? moveGroupRows(ctx, sources, target, position)
+              : moveTaskRows(ctx, sources, target, position),
+          (id) => {
+            const selected = new Set([...ctx.state.selectedTaskIds, ...ctx.state.selectedLinkedRowIds])
+            return selected.has(id) ? [...selected] : [id]
+          }
+        )
+      : undefined
 
   const thead = table.createEl('thead')
   const hrow = thead.createEl('tr')
+  hrow.createEl('th', { cls: 'pm-table-cell-number', attr: { scope: 'col', 'aria-label': t('table.rowNumber') } })
 
   const selectAllTh = hrow.createEl('th', { cls: 'pm-table-cell-select' })
   const selectAllCb = selectAllTh.createEl('input', { type: 'checkbox', cls: 'pm-select-all-checkbox' })
@@ -212,6 +241,9 @@ function taskRowDrop(ctx: TableContext, sources: string[], target: string, posit
       : ctx.scope.projectOf(id)
   const project = owner(target)
   if (!project || sources.some((id) => owner(id) !== project)) return null
+  const targetGroup = groupOf(ctx, target)
+  const crossesGroups = groupsFor(ctx).length > 0 && sources.some((id) => groupOf(ctx, id) !== targetGroup)
+  if (crossesGroups && position !== 'inside') return null
   const plan = planTaskRowMove(project, sources, target, position)
   if (!plan) return null
   const parent = plan.parentId
@@ -225,18 +257,35 @@ function taskRowDrop(ctx: TableContext, sources: string[], target: string, posit
     : parent
       ? project.taskIndex.get(parent)?.task.title
       : undefined
-  return { project, parent, parentTitle, changesParent: plan.changesParent }
+  return { project, parent, parentTitle, changesParent: plan.changesParent, crossesGroups, targetGroup }
 }
 
 async function moveTaskRows(ctx: TableContext, sources: string[], target: string, position: TreeDrop): Promise<void> {
   const { plugin } = ctx
   const drop = taskRowDrop(ctx, sources, target, position)
   if (!drop) return
-  const { project, parent } = drop
-  await plugin.store.moveTaskRows(project, sources, target, position)
+  const { project, parent, crossesGroups, targetGroup } = drop
+  if (!(await plugin.store.moveTaskRows(project, sources, target, position))) return
   const collapsed = plugin.settings.collapsedTasks[project.filePath]
-  if (parent && collapsed?.includes(parent)) {
+  const expandParent = parent && collapsed?.includes(parent)
+  if (expandParent) {
     plugin.settings.collapsedTasks[project.filePath] = collapsed.filter((id) => id !== parent)
+  }
+  let moved: Set<string> | undefined
+  if (crossesGroups) {
+    const directChildren = new Set([
+      ...(project.taskIndex.get(target)?.task.subtasks.map((task) => task.id) ?? []),
+      ...(project.linkedNotes ?? [])
+        .filter((note) => note.parentId === target)
+        .map((note) => LINKED_ROW_PREFIX + note.id),
+      ...((project.linkedNotes ?? []).find((note) => LINKED_ROW_PREFIX + note.id === target)?.childTaskIds ?? [])
+    ])
+    moved = new Set(sources.filter((id) => directChildren.has(id)))
+  }
+  if (moved?.size) {
+    const ids = moved
+    await saveProjectGroups(plugin, project, (groups) => assignGroup(groups, ids, targetGroup ?? null))
+  } else if (expandParent) {
     await plugin.saveSettings()
   }
   await ctx.onRefresh()
@@ -365,7 +414,7 @@ export const ROW_HEIGHT_ESTIMATE = 36
 /** The [start, end) slice of visibleRows to render at the current scroll position. */
 function computeWindow(state: TableState): { start: number; end: number } {
   const wrapper = state.wrapper
-  if (!wrapper) return { start: 0, end: state.visibleRows.length }
+  if (!wrapper) return { start: 0, end: state.windowLength }
   const thead = wrapper.querySelector('thead')
   const headerHeight = thead instanceof HTMLElement ? thead.offsetHeight : 0
   const scrollTop = Math.max(0, wrapper.scrollTop - headerHeight)
@@ -374,7 +423,7 @@ function computeWindow(state: TableState): { start: number; end: number } {
   let start = Math.floor(scrollTop / state.rowHeight) - ROW_OVERSCAN
   if (start < 0) start = 0
   let end = Math.ceil((scrollTop + viewHeight) / state.rowHeight) + ROW_OVERSCAN
-  if (end > state.visibleRows.length) end = state.visibleRows.length
+  if (end > state.windowLength) end = state.windowLength
   return { start, end }
 }
 
@@ -384,8 +433,24 @@ function renderWindowRows(ctx: TableContext): void {
   const tbody = state.tableBody
   if (!tbody) return
 
-  const rows = state.visibleRows
-  const colCount = ctx.columns.length + 3
+  const rows = groupRows(state.visibleRows, ctx)
+  const rowNumbers: number[] = []
+  let number = 0
+  state.displayTaskIds = []
+  state.displayRowIndices.clear()
+  rows.forEach((row, index) => {
+    if (!('task' in row)) {
+      number = 0
+      return
+    }
+    rowNumbers[index] = ++number
+    if (!row.task.id.startsWith(LINKED_ROW_PREFIX)) {
+      state.displayTaskIds.push(row.task.id)
+      state.displayRowIndices.set(row.task.id, index)
+    }
+  })
+  state.windowLength = rows.length
+  const colCount = ctx.columns.length + 4
   const { start, end } = computeWindow(state)
   state.windowStart = start
   state.windowEnd = end
@@ -393,7 +458,19 @@ function renderWindowRows(ctx: TableContext): void {
   tbody.empty()
   if (start > 0) spacerRow(tbody, colCount, start * state.rowHeight)
   for (let i = start; i < end; i++) {
-    renderTaskRow(tbody, rows[i], ctx)
+    const row = rows[i]
+    if (!('task' in row)) {
+      renderGroupRow(tbody, row, ctx, colCount)
+      continue
+    }
+    const linked = row.task.id.startsWith(LINKED_ROW_PREFIX)
+    const element = linked ? state.renderLinkedRow?.(row) : renderTaskRow(tbody, row, ctx)
+    if (!element) continue
+    element.dataset.pmFoldRow = row.task.id
+    const cell = element.insertCell(0)
+    cell.className = 'pm-table-cell-number'
+    cell.textContent = String(rowNumbers[i])
+    if (linked) tbody.append(element)
   }
   if (end < rows.length) spacerRow(tbody, colCount, (rows.length - end) * state.rowHeight)
 
@@ -452,6 +529,7 @@ export function handleTableKeyDown(e: KeyboardEvent, ctx: TableContext): void {
     active instanceof HTMLInputElement ||
     active instanceof HTMLTextAreaElement ||
     (active instanceof HTMLElement && active.contentEditable === 'true')
+  if (active?.closest('.pm-task-group-row, .pm-task-group-actions')) return
 
   if (e.key === 'Escape') {
     if (isInput) {
@@ -529,7 +607,7 @@ export function handleTableKeyDown(e: KeyboardEvent, ctx: TableContext): void {
 }
 
 export function getVisibleTaskIds(state: TableState): string[] {
-  return state.visibleRows.map((f) => f.task.id)
+  return state.displayTaskIds
 }
 
 async function deleteTask(id: string, ctx: TableContext): Promise<void> {

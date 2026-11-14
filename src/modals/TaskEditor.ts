@@ -24,6 +24,7 @@ import {
   t
 } from '@dotpm/core'
 import { TaskFileNameConflictError } from '#store'
+import { assignGroup, groupForRow, groupRoot, projectGroups, saveProjectGroups } from '#store/ProjectTaskGroups'
 import { safeAsync, renderGlyph } from '@dotpm/ui'
 import { saveShortcutLabel } from '../utils'
 import { confirmDialog, openTaskByPath } from '#ui/ModalFactory'
@@ -46,6 +47,8 @@ export class TaskEditor {
   private original: Task
   private isNew: boolean
   private originalParentId: string | null
+  private groupId: string | null | undefined
+  private inserted = false
   private cancelled = false
   private saved = false
   private persistPromise: Promise<void> | null = null
@@ -185,16 +188,33 @@ export class TaskEditor {
   }
 
   private async runPersist(): Promise<void> {
+    const groupId = this.parentId ? undefined : this.groupId
+    if (groupId && !projectGroups(this.plugin, this.project).some((group) => group.id === groupId)) {
+      new Notice(t('taskGroups.missing'))
+      throw new Error('Selected project group no longer exists')
+    }
+    let taskChanged = false
     if (this.isNew) {
-      await this.plugin.store.insertTask(this.project, this.task, this.parentId)
+      if (!this.inserted) {
+        await this.plugin.store.insertTask(this.project, this.task, this.parentId)
+        this.inserted = true
+      }
+      taskChanged = true
     } else {
       const patch = this.changedFields()
       const moved = this.parentId !== this.originalParentId
-      if (Object.keys(patch).length === 0 && !moved) return
-      await this.plugin.store.updateTask(this.project, this.task.id, patch)
+      const patched = Object.keys(patch).length > 0
+      if (patched) await this.plugin.store.updateTask(this.project, this.task.id, patch)
       if (moved) await this.plugin.store.moveTask(this.project, this.task.id, this.parentId)
+      taskChanged = patched || moved
     }
-    await this.plugin.store.scheduleAfterChange(this.project, this.task.id)
+    if (groupId !== undefined && groupRoot(this.project, this.task.id) === this.task.id) {
+      await saveProjectGroups(this.plugin, this.project, (groups) =>
+        assignGroup(groups, new Set([this.task.id]), groupId)
+      )
+      this.plugin.refreshViews()
+    } else if (!taskChanged) return
+    if (taskChanged) await this.plugin.store.scheduleAfterChange(this.project, this.task.id)
     await this.onSave(this.task)
   }
 
@@ -388,6 +408,10 @@ export class TaskEditor {
     window.setTimeout(autosizeTitle, 0)
 
     const props = body.createDiv('pm-te-props')
+    const inherited =
+      !!this.parentId ||
+      (!this.isNew && groupRoot(this.project, this.task.id) !== this.task.id && this.parentId === this.originalParentId)
+    const currentGroup = groupForRow(this.plugin, this.project, this.parentId ?? this.task.id)
     renderTaskFormFields(props, {
       task: this.task,
       project: this.project,
@@ -395,6 +419,15 @@ export class TaskEditor {
       parentId: this.parentId,
       setParentId: (id) => {
         this.parentId = id
+      },
+      groupId: inherited
+        ? (currentGroup?.id ?? null)
+        : this.groupId === undefined
+          ? (currentGroup?.id ?? null)
+          : this.groupId,
+      groupInherited: inherited,
+      setGroupId: (id) => {
+        this.groupId = id
       },
       rerender: () => this.render(),
       shownExtras: this.shownExtras,

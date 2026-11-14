@@ -28,6 +28,7 @@ import {
 } from '@dotpm/ui'
 import { renderCustomFieldInput } from './CustomFieldInputs'
 import { renderPersonPicker } from '#ui/PersonPicker'
+import { projectGroups } from '#store/ProjectTaskGroups'
 
 export interface TaskFormFieldsContext {
   task: Task
@@ -35,6 +36,9 @@ export interface TaskFormFieldsContext {
   plugin: PMPlugin
   parentId: string | null
   setParentId: (id: string | null) => void
+  groupId: string | null
+  groupInherited: boolean
+  setGroupId: (id: string | null) => void
   rerender: () => void
   shownExtras: Set<string>
   /** Leaves the editor for the task a dependency names. */
@@ -340,6 +344,34 @@ export function renderTaskFormFields(container: HTMLElement, ctx: TaskFormFields
     'tag'
   )
   tagsRow.addClass('pm-prop-row--wide')
+
+  const groups = projectGroups(plugin, project)
+  renderPropRow(
+    grid,
+    t('taskGroups.field'),
+    () => {
+      const cell = createDiv('pm-prop-value')
+      if (ctx.groupInherited || !groups.length) {
+        const label = groups.find((group) => group.id === ctx.groupId)?.name ?? t('taskGroups.ungrouped')
+        cell.createSpan({ text: label, attr: ctx.groupInherited ? { title: t('taskGroups.inherited') } : undefined })
+      } else {
+        renderSelectControl({
+          container: cell,
+          value: ctx.groupId ?? '',
+          options: [
+            { id: '', label: t('taskGroups.ungrouped') },
+            ...groups.map(({ id, name }) => ({ id, label: name }))
+          ],
+          onChange: (id) => {
+            ctx.setGroupId(id || null)
+            rerender()
+          }
+        })
+      }
+      return cell
+    },
+    'folders'
+  )
 
   if (task.dependencies.length > 0 || shownExtras.has('depends')) {
     const ownTasks = flattenTasks(project.tasks)

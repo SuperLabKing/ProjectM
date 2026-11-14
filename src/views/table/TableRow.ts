@@ -26,14 +26,19 @@ import {
   TimeCell,
   TitleCell
 } from '@dotpm/ui'
-import { updateSelectCheckboxes, getVisibleTaskIds } from './TableRenderer'
+import { updateSelectCheckboxes, getVisibleTaskIds, refreshTableBody } from './TableRenderer'
 import type { TableContext, TableState, TableTreeRow } from './TableRenderer'
 import { openTaskModal } from '#ui/ModalFactory'
 import { buildTaskContextMenu } from '#ui/TaskContextMenu'
-import { toggleCollapsed } from '../collapse'
+import { collapsedTaskIds, toggleCollapsed } from '../collapse'
 import { linkedRefs } from '../linkedRefs'
+import { animateTableFold } from './animateTableFold'
 
-export function renderTaskRow(tbody: HTMLElement, flat: TableTreeRow, ctx: TableContext): void {
+export function renderTaskRow(
+  tbody: HTMLElement,
+  flat: TableTreeRow,
+  ctx: TableContext
+): HTMLTableRowElement | undefined {
   const { task, depth } = flat
   // One row belongs to one project, so ownership is resolved here and used throughout.
   const project = ctx.scope.projectOf(task.id)
@@ -84,9 +89,15 @@ export function renderTaskRow(tbody: HTMLElement, flat: TableTreeRow, ctx: Table
     hasSubtasks: task.subtasks.length > 0,
     collapsed: ctx.collapsedIds.has(task.id),
     onToggle: safeAsync(async () => {
-      toggleCollapsed(ctx.plugin.settings, project, task.id)
-      await ctx.plugin.saveSettings()
-      await ctx.onRefresh()
+      const { settings } = ctx.plugin
+      const closing = !(settings.collapsedTasks[project.filePath] ?? []).includes(task.id)
+      let saved: Promise<void> | undefined
+      const animation = animateTableFold(ctx.state.wrapper, ctx.state.tableBody, task.id, closing, () => {
+        toggleCollapsed(settings, project, task.id)
+        refreshTableBody({ ...ctx, collapsedIds: collapsedTaskIds(settings, ctx.scope.projects) })
+        saved = ctx.plugin.saveSettings()
+      })
+      await Promise.all([animation, saved])
     })
   })
 
@@ -171,6 +182,7 @@ export function renderTaskRow(tbody: HTMLElement, flat: TableTreeRow, ctx: Table
     }
   })
   ctx.state.rowDrag?.attach(row, task.id)
+  return row
 }
 
 function renderTitleCell(row: HTMLElement, flat: TableTreeRow, project: Project, ctx: TableContext): void {
@@ -250,8 +262,8 @@ export function updateSelectedRow(state: TableState): void {
   let row = state.tableBody.querySelector(`tr[data-task-id="${state.selectedTaskId}"]`)
   if (!row && state.wrapper && state.renderWindow) {
     // Row is outside the virtual window: scroll it into range and re-render.
-    const idx = state.visibleRows.findIndex((f) => f.task.id === state.selectedTaskId)
-    if (idx === -1) return
+    const idx = state.displayRowIndices.get(state.selectedTaskId)
+    if (idx === undefined) return
     const thead = state.wrapper.querySelector('thead')
     const headerHeight = thead instanceof HTMLElement ? thead.offsetHeight : 0
     state.wrapper.scrollTop = Math.max(0, idx * state.rowHeight + headerHeight - state.wrapper.clientHeight / 2)

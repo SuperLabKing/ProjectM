@@ -1397,20 +1397,24 @@ export class ProjectStore implements TaskSource {
   async moveTaskRows(
     project: Project,
     ids: string[],
-    target: string,
+    target: string | null,
     position: 'before' | 'inside' | 'after'
-  ): Promise<void> {
-    await this.queue(project.filePath, async () => {
+  ): Promise<boolean> {
+    return this.queue(project.filePath, async () => {
       const plan = planTaskRowMove(project, ids, target, position)
-      if (!plan) return
+      if (!plan) return false
       const { taskIds, beforeTaskId, notes } = plan
       const parentId = plan.parentId && project.taskIndex.has(plan.parentId) ? plan.parentId : null
       const destination = parentId ? project.taskIndex.get(parentId)?.task.subtasks : project.tasks
       const tasks = taskIds.flatMap((id) => project.taskIndex.get(id)?.task ?? [])
-      if (!destination || tasks.length !== taskIds.length) return
+      if (!destination || tasks.length !== taskIds.length) return false
       for (const task of tasks) {
         const oldParentId = findParentId(project, task.id)
         deleteTaskFromTree(project.tasks, task.id)
+        if (target === null && task.type === 'subtask') {
+          task.type = 'task'
+          this.markDirty(project, [task.id], 'full')
+        }
         if (oldParentId === parentId) continue
         indexSetParent(project, task.id, parentId)
         this.markDirty(project, [task.id], 'full')
@@ -1421,6 +1425,7 @@ export class ProjectStore implements TaskSource {
       if (tasks.length && parentId) this.markDirty(project, [parentId], 'full')
       if (notes) project.linkedNotes = notes
       await this.doSaveProject(project)
+      return true
     })
   }
 

@@ -2,10 +2,16 @@ import { t } from '@dotpm/core'
 import { safeAsync } from '@dotpm/ui'
 
 export type TreeDrop = 'before' | 'inside' | 'after'
+interface RowDragOptions {
+  targetOnly?: boolean
+  section?: boolean
+  dropPosition?: (source: string, position: TreeDrop, offset: number) => TreeDrop
+}
 interface DropAction {
   parent: string | null
   changesParent: boolean
   parentTitle?: string
+  label?: string
 }
 const HOLD_MS = 170
 const MOUSE_DRAG_INTENT_MS = 90
@@ -115,7 +121,13 @@ function rowPositions(host: HTMLElement): RowPositions {
 }
 
 function depthOf(row: HTMLElement): number {
+  if (row.dataset.pmDragSection === 'true') return -1
   return Number(row.style.getPropertyValue('--depth')) || 0
+}
+
+function dropIndent(row: HTMLElement): number {
+  const title = row.querySelector<HTMLElement>('.pm-table-cell-title')
+  return (title?.offsetLeft ?? 0) + Math.max(0, depthOf(row)) * 20 + 8
 }
 
 export class TreeRowDrag {
@@ -145,8 +157,9 @@ export class TreeRowDrag {
     return !!this.gap?.isConnected
   }
 
-  attach(row: HTMLTableRowElement, id: string): void {
+  attach(row: HTMLTableRowElement, id: string, options: RowDragOptions = {}): void {
     row.dataset.pmDragId = id
+    if (options.section) row.dataset.pmDragSection = 'true'
     const start = () => {
       this.source = id
       this.moving = this.selection(id)
@@ -171,7 +184,8 @@ export class TreeRowDrag {
       const previous = this.highlighted === row ? this.gapPosition : null
       const upper = previous === 'before' ? 0.32 : previous === 'inside' ? 0.22 : 0.27
       const lower = previous === 'after' ? 0.68 : previous === 'inside' ? 0.78 : 0.73
-      const position: TreeDrop = offset < upper ? 'before' : offset > lower ? 'after' : 'inside'
+      const naturalPosition = offset < upper ? 'before' : offset > lower ? 'after' : 'inside'
+      const position = options.dropPosition?.(this.source, naturalPosition, offset) ?? naturalPosition
       if (cachedSelection !== this.moving) {
         cachedSelection = this.moving
         valid.clear()
@@ -243,7 +257,7 @@ export class TreeRowDrag {
       }
     }
     this.targets.set(row, { preview: destination, hover, drop })
-    row.addEventListener('pointerdown', (event) => this.beginPress(row, event, start))
+    if (!options.targetOnly) row.addEventListener('pointerdown', (event) => this.beginPress(row, event, start))
   }
 
   private beginPress(row: HTMLElement, event: PointerEvent, start: () => void): void {
@@ -369,10 +383,9 @@ export class TreeRowDrag {
     gap.className = 'pm-tree-drop-gap'
     gap.setAttribute('aria-hidden', 'true')
     const cell = gap.cells[0] ?? gap.insertCell()
-    cell.colSpan = row.cells.length
+    cell.colSpan = Array.from(row.cells).reduce((total, item) => total + item.colSpan, 0)
     const guide = (cell.firstElementChild as HTMLElement | null) ?? cell.createDiv('pm-tree-drop-guide')
-    const indent = row.querySelector<HTMLElement>('.pm-table-cell-title')?.offsetLeft ?? 0
-    guide.style.setProperty('--pm-drop-indent', `${indent + depthOf(row) * 20 + 8}px`)
+    guide.style.setProperty('--pm-drop-indent', `${dropIndent(row)}px`)
     let edge = row
     if (position === 'after') {
       const depth = depthOf(row)
@@ -413,18 +426,22 @@ export class TreeRowDrag {
     }
   }
 
-  private showHint(row: HTMLElement, { parent: targetParent, changesParent, parentTitle }: DropAction): void {
+  private showHint(
+    row: HTMLElement,
+    { parent: targetParent, changesParent, parentTitle, label: customLabel }: DropAction
+  ): void {
     const label =
-      changesParent && targetParent
+      customLabel ??
+      (changesParent && targetParent
         ? parentTitle
           ? t(this.projects ? 'table.dropSubprojectOf' : 'table.dropSubtaskOf', { title: parentTitle })
           : t(this.projects ? 'table.dropSubproject' : 'table.dropSubtask')
         : changesParent
           ? t(this.projects ? 'table.dropRootProject' : 'table.dropRootTask')
-          : t('table.dropReorder')
+          : t('table.dropReorder'))
     const guide = this.gap?.querySelector('.pm-tree-drop-guide')
     const wrapper = row.closest('.pm-table-wrapper')
-    const host = guide ?? wrapper?.parentElement
+    const host = guide ?? (wrapper && row.ownerDocument.body)
     if (!host) return
     const hint = (this.hint ??= row.ownerDocument.createElement('div'))
     hint.className = guide ? 'pm-tree-drop-hint' : 'pm-tree-drop-hint pm-tree-drop-hint--inside'
@@ -434,10 +451,7 @@ export class TreeRowDrag {
       const viewport = wrapper.getBoundingClientRect()
       const bounds = row.getBoundingClientRect()
       const below = bounds.bottom + 32 <= viewport.bottom
-      hint.style.setProperty(
-        '--pm-drop-hint-right',
-        `${Math.max(8, (row.ownerDocument.defaultView?.innerWidth ?? viewport.right) - viewport.right + 10)}px`
-      )
+      hint.style.setProperty('--pm-drop-hint-left', `${Math.max(viewport.left + 8, bounds.left + dropIndent(row))}px`)
       hint.style.setProperty('--pm-drop-hint-y', `${below ? bounds.bottom + 3 : bounds.top - 26}px`)
     }
   }
