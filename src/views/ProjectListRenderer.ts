@@ -78,7 +78,9 @@ export function renderProjectTable(
   const manual = ctx.plugin.settings.projectManualOrder !== false
   const columns: ProjectColumn[] = ['title', ...ctx.fields]
   const colgroup = table.createEl('colgroup')
+  const numberWidth = 34
   const gutterWidth = manual ? 54 : 32
+  colgroup.createEl('col').setCssStyles({ width: `${numberWidth}px` })
   colgroup.createEl('col').setCssStyles({ width: `${gutterWidth}px` })
   const widths = new Map<ProjectColumn, number>()
   const elements = new Map(
@@ -92,7 +94,7 @@ export function renderProjectTable(
   const actionsWidth = 40
   colgroup.createEl('col', { cls: 'pm-project-col-actions' }).setCssStyles({ width: `${actionsWidth}px` })
   const updateWidths = (titleWidth = widths.get('title')): void => {
-    let total = gutterWidth + actionsWidth
+    let total = numberWidth + gutterWidth + actionsWidth
     for (const id of columns) {
       const width = id === 'title' ? titleWidth : (widths.get(id) ?? COLUMN_WIDTHS[id])
       elements.get(id)?.style.setProperty('width', width === undefined ? '' : `${width}px`)
@@ -102,6 +104,7 @@ export function renderProjectTable(
   }
   updateWidths()
   const headRow = table.createEl('thead').createEl('tr')
+  headRow.createEl('th', { cls: 'pm-table-cell-number', attr: { scope: 'col', 'aria-label': t('table.rowNumber') } })
   headRow.createEl('th')
   for (const id of columns) {
     const label = id === 'title' ? t('columns.project') : projectFieldLabel(id)
@@ -163,7 +166,7 @@ export function renderProjectTable(
     if (group.key !== null) {
       const key = group.key
       const row = tbody.createEl('tr', { cls: 'pm-project-group-row' })
-      const cell = row.createEl('td', { attr: { colspan: String(columns.length + 2) } })
+      const cell = row.createEl('td', { attr: { colspan: String(headRow.cells.length) } })
       const inner = cell.createDiv('pm-project-group')
       new CollapseToggle(inner, {
         collapsed,
@@ -177,7 +180,7 @@ export function renderProjectTable(
       inner.createSpan({ cls: 'pm-project-group-label', text: groupLabel(groupBy, key) })
       inner.createSpan({ cls: 'pm-project-group-count', text: String(group.count) })
     }
-    if (!collapsed) for (const row of group.rows) renderRow(ctx, tbody, row, drag)
+    if (!collapsed) for (const [index, row] of group.rows.entries()) renderRow(ctx, tbody, row, index + 1, drag)
   }
 }
 
@@ -192,7 +195,8 @@ function attachProjectColumnResize(
     cls: 'pm-table-resize',
     attr: { tabindex: '0', role: 'button', 'aria-label': label, title: label }
   })
-  const titleWidth = () => Math.round(table.tHead?.rows[0].cells[1].getBoundingClientRect().width ?? 0)
+  const titleWidth = () =>
+    Math.round(table.tHead?.querySelector('.pm-table-th-resizable')?.getBoundingClientRect().width ?? 0)
   const fit = () => {
     const width = fitProjectColumn(table, th)
     preview(width, titleWidth())
@@ -261,7 +265,13 @@ function groupLabel(groupBy: ProjectGroupBy, key: string): string {
   return key ? `${key}/` : t('list.noFolder')
 }
 
-function renderRow(ctx: ProjectListContext, tbody: HTMLElement, row: ProjectListRow, drag?: TreeRowDrag): void {
+function renderRow(
+  ctx: ProjectListContext,
+  tbody: HTMLElement,
+  row: ProjectListRow,
+  number: number,
+  drag?: TreeRowDrag
+): void {
   const { index } = ctx.plugin
   const { item } = row
   const ref = index.projectRef(item.path)
@@ -295,6 +305,9 @@ function renderRow(ctx: ProjectListContext, tbody: HTMLElement, row: ProjectList
     onContextMenu: (e) => openProjectContextMenu(ctx, ref, e),
     onActions: (e) => openProjectContextMenu(ctx, ref, e)
   })
+  const numberCell = el.insertCell(0)
+  numberCell.className = 'pm-table-cell-number'
+  numberCell.textContent = String(number)
   if (drag) {
     drag.attach(el, item.path)
     const gutter = el.querySelector<HTMLElement>('.pm-table-cell-expand')
