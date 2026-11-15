@@ -24,7 +24,15 @@ export class PMViewRouter {
   }
 
   async openProject(file: TFile): Promise<void> {
-    await this.openScope({ kind: 'project', path: file.path })
+    await this.openProjectTasks(file.path)
+  }
+
+  projectTaskScope(path: string): ScopeSpec {
+    return { kind: 'project', path }
+  }
+
+  async openProjectTasks(path: string, leaf?: WorkspaceLeaf): Promise<void> {
+    await this.openScope(this.projectTaskScope(path), leaf)
   }
 
   async openScope(scope: ScopeSpec, leaf?: WorkspaceLeaf): Promise<void> {
@@ -38,7 +46,7 @@ export class PMViewRouter {
   /** Where a project link lands, per the open projects in setting. */
   projectLinkViewState(path: string): ViewState {
     if (this.plugin.settings.projectSurface === 'tasks') {
-      return { type: PM_PROJECT_VIEW_TYPE, state: { scope: { kind: 'project', path } } }
+      return { type: PM_PROJECT_VIEW_TYPE, state: { scope: this.projectTaskScope(path) } }
     }
     return { type: PM_PROJECT_OVERVIEW_VIEW_TYPE, state: { filePath: path } }
   }

@@ -283,6 +283,7 @@ export class DashboardView extends ItemView {
         onChange: (enabled) => {
           this.plugin.settings.projectManualOrder = enabled
           sorted()
+          this.plugin.refreshProjectTrees()
         }
       },
       onReset: () => {

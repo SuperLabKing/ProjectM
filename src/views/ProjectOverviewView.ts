@@ -230,7 +230,7 @@ export class ProjectOverviewView extends ItemView {
     new ButtonComponent(header)
       .setButtonText(t('project.openTasks'))
       .setCta()
-      .onClick(safeAsync(() => this.plugin.router.openScope({ kind: 'project', path: project.filePath }, this.leaf)))
+      .onClick(safeAsync(() => this.plugin.router.openProjectTasks(project.filePath, this.leaf)))
   }
 
   private section(parent: HTMLElement, title: string, note = ''): HTMLElement {

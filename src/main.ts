@@ -671,6 +671,27 @@ export default class PMPlugin extends Plugin {
     await this.saveData(this.settings)
   }
 
+  refreshProjectTrees(): void {
+    for (const leaf of this.app.workspace.getLeavesOfType(PM_PROJECT_VIEW_TYPE)) {
+      if (leaf.view instanceof ProjectView) leaf.view.renderProjectTree()
+    }
+  }
+
+  async saveProjectSiblingOrder(ids: string[], redrawDashboard = true): Promise<void> {
+    const siblings = new Set(ids)
+    this.settings.projectOrder = [...ids, ...(this.settings.projectOrder ?? []).filter((id) => !siblings.has(id))]
+    await this.saveSettings()
+    this.refreshProjectTrees()
+    for (const leaf of this.app.workspace.getLeavesOfType(PM_PROJECT_OVERVIEW_VIEW_TYPE)) {
+      if (leaf.view instanceof ProjectOverviewView) leaf.view.render()
+    }
+    if (redrawDashboard) {
+      for (const leaf of this.app.workspace.getLeavesOfType(PM_DASHBOARD_VIEW_TYPE)) {
+        if (leaf.view instanceof DashboardView) leaf.view.render()
+      }
+    }
+  }
+
   showNotice(msg: string, duration = 3000): void {
     new Notice(msg, duration)
   }

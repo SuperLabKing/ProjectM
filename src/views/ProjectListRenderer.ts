@@ -15,8 +15,8 @@ import {
 } from '@dotpm/core'
 import { safeAsync, CollapseToggle, ProjectRow, projectFieldLabel } from '@dotpm/ui'
 import { linkedRefs } from './linkedRefs'
-import { TreeRowDrag, type TreeDrop } from './TreeRowDrag'
-import { PM_PROJECT_OVERVIEW_VIEW_TYPE, ProjectOverviewView } from './ProjectOverviewView'
+import { TreeRowDrag } from './TreeRowDrag'
+import { moveProjectRows, projectDropParent } from './projectHierarchy'
 
 type ProjectColumn = 'title' | ProjectListField
 const COLUMN_WIDTHS: Record<ProjectColumn, number> = {
@@ -135,7 +135,7 @@ export function renderProjectTable(
   const drag = manual
     ? new TreeRowDrag(
         (sources, target, position) => {
-          const parent = projectDropParent(ctx, sources, target, position)
+          const parent = projectDropParent(ctx.plugin, sources, target, position)
           return parent === undefined
             ? null
             : {
@@ -144,7 +144,9 @@ export function renderProjectTable(
                 changesParent: sources.some((path) => (ctx.plugin.index.parentOf(path)?.path ?? null) !== parent)
               }
         },
-        (sources, target, position) => moveProjectRows(ctx, sources, target, position),
+        async (sources, target, position) => {
+          if (await moveProjectRows(ctx.plugin, sources, target, position, false)) ctx.redraw()
+        },
         (path) => {
           if (!ctx.selectedProjects.has(path)) return [path]
           const selected = visiblePaths.filter((item) => ctx.selectedProjects.has(item))
@@ -176,49 +178,6 @@ export function renderProjectTable(
       inner.createSpan({ cls: 'pm-project-group-count', text: String(group.count) })
     }
     if (!collapsed) for (const row of group.rows) renderRow(ctx, tbody, row, drag)
-  }
-}
-
-function projectDropParent(
-  ctx: ProjectListContext,
-  sources: string[],
-  target: string,
-  position: TreeDrop
-): string | null | undefined {
-  const { index } = ctx.plugin
-  const parent = position === 'inside' ? target : (index.parentOf(target)?.path ?? null)
-  const ancestors = index.ancestorRefs(target)
-  if (sources.some((source) => source === target || ancestors.some((ref) => ref.path === source))) return undefined
-  return parent
-}
-
-async function moveProjectRows(
-  ctx: ProjectListContext,
-  sources: string[],
-  target: string,
-  position: TreeDrop
-): Promise<void> {
-  const { index, settings, store } = ctx.plugin
-  const parent = projectDropParent(ctx, sources, target, position)
-  if (parent === undefined) return
-  const projects = await Promise.all(sources.map((source) => store.loadProjectByPath(source)))
-  const moving = projects.flatMap((project) => project ?? [])
-  if (moving.length !== sources.length) return
-  const sourcePaths = new Set(sources)
-  const refs = parent ? index.childRefs(parent, true) : index.rootRefs(true)
-  const siblings = index.orderedProjectRefs(refs).filter((ref) => !sourcePaths.has(ref.path))
-  const targetIndex = siblings.findIndex((ref) => ref.path === target)
-  const insertion = targetIndex < 0 ? siblings.length : targetIndex + Number(position === 'after')
-  const ids = siblings.map((ref) => ref.id)
-  if (!(await store.moveProjects(moving, parent))) return
-  ids.splice(insertion, 0, ...moving.map((project) => project.id))
-  const moved = new Set(ids)
-  settings.projectOrder = [...ids, ...(settings.projectOrder ?? []).filter((id) => !moved.has(id))]
-  if (parent) settings.collapsedProjects = settings.collapsedProjects.filter((path) => path !== parent)
-  await ctx.plugin.saveSettings()
-  ctx.redraw()
-  for (const leaf of ctx.plugin.app.workspace.getLeavesOfType(PM_PROJECT_OVERVIEW_VIEW_TYPE)) {
-    if (leaf.view instanceof ProjectOverviewView) leaf.view.render()
   }
 }
 
@@ -391,16 +350,8 @@ function openProjectContextMenu(ctx: ProjectListContext, ref: ProjectRef, e: Mou
     item
       .setTitle(t('project.openTasks'))
       .setIcon('table')
-      .onClick(safeAsync(() => ctx.plugin.router.openScope({ kind: 'project', path: ref.path })))
+      .onClick(safeAsync(() => ctx.plugin.router.openProjectTasks(ref.path)))
   )
-  if (ctx.plugin.index.childRefs(ref.path).length) {
-    menu.addItem((item) =>
-      item
-        .setTitle(t('project.openWithSubProjects'))
-        .setIcon('layers')
-        .onClick(safeAsync(() => ctx.plugin.router.openScope({ kind: 'subtree', path: ref.path })))
-    )
-  }
   menu.addItem((item) =>
     item
       .setTitle(t('commands.duplicateProject'))

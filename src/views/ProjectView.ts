@@ -1,4 +1,4 @@
-import { ItemView, Menu, Platform, Scope, WorkspaceLeaf } from 'obsidian'
+import { ItemView, Menu, Platform, Scope, setIcon, WorkspaceLeaf } from 'obsidian'
 import type PMPlugin from '#main'
 import { addTabPageItems, refreshTabTitle } from '#ui/tab'
 import {
@@ -39,8 +39,7 @@ import {
   type ProjectRef,
   resolveScopePaths,
   scopeKey,
-  type ScopeSpec,
-  selectionSpec
+  type ScopeSpec
 } from '#store'
 import {
   boardCandidates,
@@ -67,6 +66,7 @@ import {
   renderFieldsPanel,
   renderFilterPanel,
   renderGroupPanel,
+  renderGlyph,
   renderSortPanel,
   renderBreadcrumb,
   safeAsync,
@@ -99,6 +99,8 @@ import { KanbanView } from './KanbanView'
 import { openTaskModal } from '#ui/ModalFactory'
 import { exportViewAsHtml } from '../export/exportView'
 import { collapsedTaskIds, setAllCollapsed } from './collapse'
+import { moveProjectRows, projectDropParent } from './projectHierarchy'
+import type { TreeDrop } from './TreeRowDrag'
 
 export const PM_PROJECT_VIEW_TYPE = 'pm-project'
 
@@ -111,6 +113,13 @@ interface ProjectViewState {
 }
 
 const MODES: ViewMode[] = ['table', 'gantt', 'kanban']
+const PROJECT_TREE_WIDTH = { min: 152, initial: 210, max: 520 }
+
+interface ProjectTreePreferences {
+  visible?: boolean
+  width?: number
+  branches?: Record<string, boolean>
+}
 const MODE_ICONS: Record<ViewMode, string> = { table: 'table', gantt: 'chart-gantt', kanban: 'kanban' }
 const SCOPE_ICONS = { picked: 'layers', folder: 'folder', vault: 'vault' }
 const modeLabel = (mode: ViewMode): string =>
@@ -143,6 +152,7 @@ interface ViewOption {
 }
 
 function specOf(state: ProjectViewState): ScopeSpec | null {
+  if (state.scope?.kind === 'subtree') return { kind: 'project', path: state.scope.path }
   if (state.scope) return state.scope
   if (state.filePath) return { kind: 'project', path: state.filePath }
   return null
@@ -168,6 +178,11 @@ export class ProjectView extends ItemView {
   granularity: GanttGranularity
   private subview: SubView | null = null
   private headerEl!: HTMLElement
+  private projectTreeEl!: HTMLElement
+  private projectTreeResize!: HTMLElement
+  private projectTreeToggle: HTMLElement | null = null
+  private projectTreeOpen = !Platform.isPhone
+  private projectTreeKey: string | undefined
   private bodyEl!: HTMLElement
   private emptyEl!: HTMLElement
   private header: ViewHeader | null = null
@@ -299,8 +314,23 @@ export class ProjectView extends ItemView {
     root.empty()
     root.addClass('pm-root')
     this.headerEl = root.createDiv('pm-vh-mount')
-    this.bodyEl = root.createDiv('pm-content')
-    this.emptyEl = root.createDiv('pm-filter-empty pm-hidden')
+    const layout = root.createDiv('pm-project-task-layout').createDiv('pm-project-task-split')
+    this.projectTreeEl = layout.createEl('nav', {
+      cls: 'pm-project-tree',
+      attr: { 'aria-label': t('header.projectTree') }
+    })
+    this.projectTreeEl.hidden = true
+    const treeWindow = this.projectTreeEl.ownerDocument.defaultView
+    if (treeWindow) {
+      const syncGuidePixel = () =>
+        this.projectTreeEl.style.setProperty('--pm-project-tree-device-pixel', `${1 / treeWindow.devicePixelRatio}px`)
+      syncGuidePixel()
+      this.registerDomEvent(treeWindow, 'resize', syncGuidePixel)
+    }
+    this.attachProjectTreeResize(layout)
+    const content = layout.createDiv('pm-project-task-main')
+    this.bodyEl = content.createDiv('pm-content')
+    this.emptyEl = content.createDiv('pm-filter-empty pm-hidden')
 
     this.register(
       this.plugin.store.onProjectChanged((path) => {
@@ -317,6 +347,8 @@ export class ProjectView extends ItemView {
         const current = this.loadedPaths
         if (paths.length !== current.length || paths.some((path, i) => path !== current[i])) {
           void this.loadScope()
+        } else {
+          this.renderProjectTree()
         }
       })
     )
@@ -345,6 +377,7 @@ export class ProjectView extends ItemView {
     // A settings edit may have changed a palette, which the scope has resolved and kept.
     this.projectScope.invalidate()
     refreshTabTitle(this.leaf)
+    this.renderProjectTree()
     // Rebuilding the header would drop the caret out of the search box.
     if (this.headerEl.contains(activeDocument.activeElement)) this.syncHeader()
     else this.renderHeader()
@@ -353,12 +386,14 @@ export class ProjectView extends ItemView {
 
   private async loadScope(): Promise<void> {
     this.ensureInitialized()
-    if (!this.spec) return
-    if (this.spec.kind === 'project' || this.spec.kind === 'subtree') this.anchorPath = this.spec.path
-    const paths = resolveScopePaths(this.spec, this.plugin.index)
+    const spec = this.spec
+    if (!spec) return
+    if (spec.kind === 'project') this.anchorPath = spec.path
+    const paths = resolveScopePaths(spec, this.plugin.index)
     this.loadedPaths = paths
     const projects = await this.plugin.store.loadProjects(paths)
-    this.projectScope = new ProjectScope(this.spec, projects, this.plugin.store)
+    if (this.spec !== spec) return
+    this.projectScope = new ProjectScope(spec, projects, this.plugin.store)
     if (!this.projectScope.primary) {
       this.renderEmptyScope()
       return
@@ -371,6 +406,7 @@ export class ProjectView extends ItemView {
     this.zoom = clampZoom(Number(this.app.loadLocalStorage(this.zoomKey())) || 100)
     this.queryBarOpen = countActiveFilters(this.query.filter) > 0
     refreshTabTitle(this.leaf)
+    this.renderProjectTree()
     this.renderHeader()
     this.renderCurrentView()
   }
@@ -378,7 +414,7 @@ export class ProjectView extends ItemView {
   private async switchScope(spec: ScopeSpec): Promise<void> {
     this.spec = spec
     await this.loadScope()
-    await this.leaf.setViewState({ type: PM_PROJECT_VIEW_TYPE, state: this.getState() })
+    if (this.spec === spec) await this.leaf.setViewState({ type: PM_PROJECT_VIEW_TYPE, state: this.getState() })
   }
 
   /** Moves this leaf to another scope in the same mode, or opens it in a new tab. */
@@ -494,6 +530,10 @@ export class ProjectView extends ItemView {
   }
 
   private renderEmptyScope(): void {
+    this.projectTreeKey = undefined
+    this.projectTreeEl.empty()
+    delete this.projectTreeEl.dataset.projectTreeView
+    this.syncProjectTree()
     this.header?.destroy()
     this.header = null
     this.filterBar = null
@@ -511,6 +551,7 @@ export class ProjectView extends ItemView {
     const primary = scope?.primary
     if (!scope || !primary) return
     this.header?.destroy()
+    this.projectTreeToggle = null
     const header = new ViewHeader(this.headerEl)
     this.header = header
     this.renderContextSlot(header.context, scope, primary)
@@ -644,16 +685,25 @@ export class ProjectView extends ItemView {
         .setIcon('arrow-left')
         .setTooltip(t('project.backToDashboard'))
         .onClick(safeAsync(() => this.plugin.router.openDashboard(this.leaf)))
+      const treeToggle = new IconButton(parent)
+        .setIcon('panel-left')
+        .setTooltip(t('header.projectTree'))
+        .onClick(() => {
+          this.projectTreeOpen = !this.projectTreeOpen
+          this.saveProjectTreePreferences({ visible: this.projectTreeOpen })
+          this.syncProjectTree()
+        })
+      this.projectTreeToggle = treeToggle.el
+      this.syncProjectTree()
       renderBreadcrumb(parent, {
         ...common,
         icon: primary.icon,
         color: primary.color,
         ancestors: this.plugin.index.ancestorRefs(primary.filePath).map((ref) => ({
           title: ref.title,
-          onOpen: safeAsync((newTab: boolean) => this.goTo({ kind: 'project', path: ref.path }, newTab))
+          onOpen: safeAsync((newTab: boolean) => this.goTo(this.plugin.router.projectTaskScope(ref.path), newTab))
         })),
-        title: primary.title,
-        badge: count > 1 ? `+${count - 1}` : undefined
+        title: primary.title
       })
       return
     }
@@ -726,38 +776,377 @@ export class ProjectView extends ItemView {
     for (const { ref, folder } of roots) add(ref, undefined, folder)
 
     const anchorProject = scope.projects.find((project) => project.filePath === this.anchorPath) ?? primary
-    const path = spec.kind === 'project' || spec.kind === 'subtree' ? spec.path : anchorProject.filePath
-    const folder = this.containingFolder(path)
-    const options: { label: string; spec: ScopeSpec }[] = [
-      {
-        label: t('scope.only', { title: index.projectRef(path)?.title ?? anchorProject.title }),
-        spec: { kind: 'project', path }
-      }
-    ]
-    if (index.childRefs(path).length) options.push({ label: t('scope.subtree'), spec: { kind: 'subtree', path } })
-    options.push(
-      {
-        label: folder ? t('scope.folder', { folder }) : t('scope.vaultFolder'),
-        spec: { kind: 'folder', path: folder }
-      },
-      { label: t('scope.all'), spec: { kind: 'vault' } }
-    )
-
+    const path = spec.kind === 'project' ? spec.path : anchorProject.filePath
+    const pick = safeAsync((picked: string) => this.goTo(this.plugin.router.projectTaskScope(picked), false))
     openProjectSwitcher(anchor, {
       projects,
       selected: scope.projects.map((project) => project.filePath),
       current: spec.kind === 'project' ? spec.path : undefined,
-      presets: options.map((option) => ({
-        label: option.label,
-        active: scope.key === scopeKey(option.spec),
-        onPick: safeAsync(() => this.goTo(option.spec, false))
-      })),
-      onPick: safeAsync((picked: string) => this.goTo({ kind: 'project', path: picked }, false)),
-      onShow: safeAsync((paths: string[]) => {
-        const descendantsOf = (of: string): string[] => index.descendantRefs(of).map((ref) => ref.path)
-        return this.goTo(selectionSpec(paths, descendantsOf), false)
-      })
+      presets:
+        spec.kind === 'project'
+          ? []
+          : [
+              {
+                label: t('scope.only', { title: index.projectRef(path)?.title ?? anchorProject.title }),
+                active: false,
+                onPick: () => pick(path)
+              }
+            ],
+      onScopeCheck: pick,
+      onPick: pick
     })
+  }
+
+  private syncProjectTree(): void {
+    this.projectTreeEl.hidden = !this.projectTreeOpen || !this.projectTreeEl.childElementCount
+    this.projectTreeResize.hidden = this.projectTreeEl.hidden
+    this.projectTreeToggle?.setAttribute('aria-expanded', String(!this.projectTreeEl.hidden))
+  }
+
+  private projectTreePreferences(key = this.projectTreeKey): ProjectTreePreferences {
+    return key ? ((this.app.loadLocalStorage(key) as ProjectTreePreferences | null) ?? {}) : {}
+  }
+
+  private saveProjectTreePreferences(changes: ProjectTreePreferences, key = this.projectTreeKey): void {
+    if (key) {
+      const saved = this.projectTreePreferences(key)
+      const preferences = {
+        ...saved,
+        ...changes,
+        branches: { ...saved.branches, ...changes.branches }
+      }
+      if (preferences.width === undefined) delete preferences.width
+      this.app.saveLocalStorage(key, preferences)
+    }
+  }
+
+  private setProjectTreeWidth(width: number): void {
+    const { min, max } = PROJECT_TREE_WIDTH
+    const value = Number.isFinite(width) ? Math.min(max, Math.max(min, Math.round(width))) : PROJECT_TREE_WIDTH.initial
+    this.projectTreeEl.style.setProperty('--pm-project-tree-width', `${value}px`)
+    this.projectTreeResize.setAttribute('aria-valuenow', String(value))
+  }
+
+  private attachProjectTreeResize(layout: HTMLElement): void {
+    const { min, max } = PROJECT_TREE_WIDTH
+    const handle = layout.createDiv({
+      cls: 'pm-project-tree-resize',
+      attr: {
+        role: 'separator',
+        tabindex: '0',
+        'aria-orientation': 'vertical',
+        'aria-label': t('header.resizeProjectTree'),
+        title: t('header.resetProjectTreeWidth'),
+        'aria-valuemin': String(min),
+        'aria-valuemax': String(max)
+      }
+    })
+    this.projectTreeResize = handle
+    handle.hidden = true
+    let drag: { id: number; x: number; width: number; key: string | undefined } | undefined
+    const direction = () => (getComputedStyle(layout).direction === 'rtl' ? -1 : 1)
+    const limit = (width: number) =>
+      Math.round(Math.min(max, Math.max(min, Math.min(width, layout.clientWidth * 0.55))))
+    const currentWidth = () => this.projectTreeEl.getBoundingClientRect().width
+    handle.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0 || drag) return
+      handle.setPointerCapture(event.pointerId)
+      drag = { id: event.pointerId, x: event.clientX, width: currentWidth(), key: this.projectTreeKey }
+      event.preventDefault()
+    })
+    handle.addEventListener('pointermove', (event) => {
+      if (!drag || event.pointerId !== drag.id || drag.key !== this.projectTreeKey) return
+      this.setProjectTreeWidth(limit(drag.width + (event.clientX - drag.x) * direction()))
+    })
+    handle.addEventListener('pointerup', (event) => {
+      if (!drag || event.pointerId !== drag.id) return
+      const start = drag
+      drag = undefined
+      if (start.key !== this.projectTreeKey) return
+      if (event.clientX === start.x) {
+        this.setProjectTreeWidth(this.projectTreePreferences().width ?? PROJECT_TREE_WIDTH.initial)
+        return
+      }
+      const width = limit(start.width + (event.clientX - start.x) * direction())
+      this.setProjectTreeWidth(width)
+      this.saveProjectTreePreferences({ width })
+    })
+    handle.addEventListener('lostpointercapture', () => {
+      if (!drag) return
+      drag = undefined
+      this.setProjectTreeWidth(this.projectTreePreferences().width ?? PROJECT_TREE_WIDTH.initial)
+    })
+    handle.addEventListener('dblclick', (event) => {
+      if (event.button !== 0 || drag || !this.projectTreeKey) return
+      this.setProjectTreeWidth(PROJECT_TREE_WIDTH.initial)
+      this.saveProjectTreePreferences({ width: undefined })
+    })
+    handle.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+      event.preventDefault()
+      const width = limit(currentWidth() + (event.key === 'ArrowLeft' ? -16 : 16) * direction())
+      this.setProjectTreeWidth(width)
+      this.saveProjectTreePreferences({ width })
+    })
+  }
+
+  renderProjectTree(): void {
+    const nav = this.projectTreeEl
+    if (!nav) return
+    const focused = nav.ownerDocument.activeElement
+    const restoreFocus = nav.contains(focused)
+    const restoreScopeFocus = restoreFocus && focused?.hasAttribute('data-project-tree-scope')
+    const spec = this.projectScope?.spec
+    const index = this.plugin.index
+    const active = spec?.kind === 'project' ? index.projectRef(spec.path) : undefined
+    const treeScopeKey = active ? `dotpm-project-tree-scope:${active.id}` : undefined
+    const treeScope = treeScopeKey && this.app.loadLocalStorage(treeScopeKey) === 'all' ? 'all' : 'current'
+    const treeView = active ? `${treeScope}:${active.id}` : undefined
+    const win = nav.ownerDocument.defaultView
+    const outgoing =
+      treeView &&
+      nav.dataset.projectTreeView &&
+      nav.dataset.projectTreeView !== treeView &&
+      !nav.hidden &&
+      win?.matchMedia('(prefers-reduced-motion: no-preference)').matches
+        ? nav.querySelector<HTMLUListElement>(':scope > .pm-project-tree-lists > ul:not(.pm-project-tree-outgoing)')
+        : null
+    const outgoingTop = outgoing?.getBoundingClientRect().top
+    const outgoingOpacity = outgoing && win?.getComputedStyle(outgoing).opacity
+    outgoing?.getAnimations().forEach((animation) => animation.cancel())
+    nav.empty()
+    if (active) {
+      const ancestors = index.ancestorRefs(active.path)
+      const root = ancestors[0] ?? active
+      const parent = ancestors.at(-1)
+      const showAll = treeScope === 'all'
+      const includeArchived = this.plugin.settings.showArchivedProjects || index.isArchived(active.path)
+      const key = `dotpm-project-tree:${root.id}`
+      if (this.projectTreeKey !== key) {
+        this.projectTreeKey = key
+        const preferences = this.projectTreePreferences()
+        this.projectTreeOpen = preferences.visible ?? !Platform.isPhone
+        this.setProjectTreeWidth(preferences.width ?? PROJECT_TREE_WIDTH.initial)
+      }
+      const { branches } = this.projectTreePreferences()
+      const defaultExpanded = new Set([active.id, ...ancestors.map((ref) => ref.id)])
+      nav.createDiv({ cls: 'pm-project-tree-heading', text: t('header.projectTree') })
+      const scope = nav.createDiv({
+        cls: 'pm-project-tree-scope',
+        attr: { role: 'group', 'aria-label': t('header.projectTreeScope') }
+      })
+      for (const [mode, label] of [
+        ['current', t('header.projectTreeCurrentProject')],
+        ['all', t('header.projectTreeAllProjects')]
+      ] as const) {
+        const button = scope.createEl('button', {
+          text: label,
+          attr: {
+            type: 'button',
+            'aria-pressed': String(treeScope === mode),
+            'data-project-tree-scope': mode
+          }
+        })
+        button.addEventListener('click', () => {
+          if (treeScope === mode || !treeScopeKey) return
+          this.app.saveLocalStorage(treeScopeKey, mode)
+          this.renderProjectTree()
+        })
+      }
+      if (parent) {
+        const back = nav.createEl('button', {
+          cls: 'pm-project-tree-parent',
+          attr: { type: 'button', title: parent.title }
+        })
+        setIcon(back.createSpan(), 'corner-left-up')
+        back.createSpan({ text: t('header.projectTreeBackToParent') })
+        back.addEventListener(
+          'click',
+          safeAsync(() => this.goTo({ kind: 'project', path: parent.path }, false))
+        )
+      }
+      const drag =
+        this.plugin.settings.projectManualOrder !== false
+          ? this.projectTreeReorder(showAll ? undefined : active.path)
+          : undefined
+      const renderNode = (list: HTMLElement, ref: ProjectRef): void => {
+        const children = index.childRefs(ref.path, includeArchived)
+        const item = list.createEl('li')
+        if (list.parentElement?.tagName === 'LI') {
+          const guide = item.createSvg('svg', { cls: 'pm-project-tree-guide', attr: { 'aria-hidden': 'true' } })
+          guide.createSvg('rect', { cls: 'pm-project-tree-guide-vertical' })
+          guide.createSvg('rect', { cls: 'pm-project-tree-guide-horizontal', attr: { y: '14', width: '14' } })
+        }
+        const row = item.createDiv('pm-project-tree-row')
+        const current = ref.path === active.path
+        const branch = children.length
+          ? row.createEl('button', {
+              cls: 'clickable-icon pm-project-tree-fold',
+              attr: { type: 'button', 'aria-label': ref.title }
+            })
+          : row.createSpan({ cls: 'pm-project-tree-fold', attr: { 'aria-hidden': 'true' } })
+        if (children.length) setIcon(branch, 'chevron-right')
+        const link = row.createEl('button', {
+          cls: 'pm-project-tree-project',
+          attr: { type: 'button', title: ref.title }
+        })
+        drag?.(ref, row, link)
+        if (current) link.setAttribute('aria-current', 'page')
+        renderGlyph(link, { icon: ref.icon ?? 'folder', color: ref.color })
+        link.createSpan({ cls: 'pm-project-tree-name', text: ref.title })
+        link.addEventListener(
+          'click',
+          safeAsync(async () => {
+            if (Platform.isPhone) {
+              this.projectTreeOpen = false
+              this.syncProjectTree()
+            }
+            if (!current) await this.goTo({ kind: 'project', path: ref.path }, false)
+          })
+        )
+        if (!children.length) return
+        const childList = item.createEl('ul')
+        let foldAnimation: Animation | undefined
+        const sync = (expanded: boolean, animate = false): void => {
+          branch.setAttribute('aria-expanded', String(expanded))
+          childList.inert = !expanded
+          if (!animate || nav.ownerDocument.defaultView?.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            foldAnimation?.cancel()
+            foldAnimation = undefined
+            childList.hidden = !expanded
+            return
+          }
+          const from = childList.getBoundingClientRect().height
+          foldAnimation?.cancel()
+          childList.hidden = false
+          const to = expanded ? childList.getBoundingClientRect().height : 0
+          const animation = childList.animate(
+            [
+              { height: `${from}px`, overflow: 'clip' },
+              { height: `${to}px`, overflow: 'clip' }
+            ],
+            { duration: 225, easing: 'cubic-bezier(0.25, 0.8, 0.35, 1)' }
+          )
+          foldAnimation = animation
+          animation.addEventListener('finish', () => {
+            if (foldAnimation !== animation) return
+            foldAnimation = undefined
+            childList.hidden = !expanded
+          })
+        }
+        sync(branches?.[ref.id] ?? defaultExpanded.has(ref.id))
+        branch.addEventListener('click', () => {
+          const expanded = branch.getAttribute('aria-expanded') !== 'true'
+          this.saveProjectTreePreferences({ branches: { [ref.id]: expanded } })
+          sync(expanded, true)
+        })
+        for (const child of index.orderedProjectRefs(children)) renderNode(childList, child)
+      }
+      const lists = nav.createDiv('pm-project-tree-lists')
+      const list = lists.createEl('ul')
+      nav.dataset.projectTreeView = treeView
+      const roots = showAll ? index.orderedProjectRefs(index.rootRefs(includeArchived)) : [active]
+      for (const ref of roots) renderNode(list, ref)
+      if (outgoing && outgoingTop !== undefined) {
+        const motion = { duration: 230, easing: 'cubic-bezier(0.25, 0.8, 0.35, 1)' }
+        const offset = outgoingTop - list.getBoundingClientRect().top
+        outgoing.inert = true
+        outgoing.setAttribute('aria-hidden', 'true')
+        outgoing.addClass('pm-project-tree-outgoing')
+        outgoing.style.insetBlockStart = `${offset}px`
+        lists.appendChild(outgoing)
+        const fade = outgoing.animate([{ opacity: outgoingOpacity || 1 }, { opacity: 0 }], { ...motion, duration: 155 })
+        fade.addEventListener('finish', () => outgoing.remove())
+        list.animate(
+          [
+            { opacity: 0.25, transform: 'translateY(3px)' },
+            { opacity: 1, transform: 'none' }
+          ],
+          motion
+        )
+      }
+    } else {
+      this.projectTreeKey = undefined
+      delete nav.dataset.projectTreeView
+    }
+    this.syncProjectTree()
+    if (restoreFocus) {
+      const selector = restoreScopeFocus ? '[data-project-tree-scope][aria-pressed="true"]' : '[aria-current="page"]'
+      nav.querySelector<HTMLElement>(selector)?.focus({ preventScroll: true })
+    }
+  }
+
+  private projectTreeReorder(scopeRoot?: string) {
+    let source: { ref: ProjectRef; link: HTMLButtonElement } | undefined
+    let targetRow: HTMLElement | undefined
+    const clearTarget = (): void => {
+      targetRow?.removeAttribute('data-pm-project-drop')
+      targetRow = undefined
+    }
+    const finish = (): void => {
+      source?.link.removeClass('pm-project-tree-dragging')
+      source = undefined
+      clearTarget()
+    }
+    return (ref: ProjectRef, row: HTMLElement, link: HTMLButtonElement): void => {
+      const placement = (event: DragEvent): TreeDrop => {
+        const bounds = row.getBoundingClientRect()
+        const offset = (event.clientY - bounds.top) / bounds.height
+        return offset < 0.27 ? 'before' : offset > 0.73 ? 'after' : 'inside'
+      }
+      const canDrop = (moving: string, position: TreeDrop): boolean =>
+        (ref.path !== scopeRoot || position === 'inside') &&
+        projectDropParent(this.plugin, [moving], ref.path, position) !== undefined
+      link.draggable = ref.path !== scopeRoot
+      link.addEventListener('dragstart', (event) => {
+        if (!link.draggable) {
+          event.preventDefault()
+          return
+        }
+        if (!event.dataTransfer) return
+        finish()
+        source = { ref, link }
+        event.dataTransfer.setData('application/x-projectm-project', ref.id)
+        event.dataTransfer.effectAllowed = 'move'
+        link.addClass('pm-project-tree-dragging')
+      })
+      link.addEventListener('dragend', finish)
+      row.addEventListener('dragover', (event) => {
+        if (!source) return
+        const position = placement(event)
+        if (!canDrop(source.ref.path, position)) {
+          clearTarget()
+          return
+        }
+        event.preventDefault()
+        if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+        if (targetRow !== row) clearTarget()
+        row.dataset.pmProjectDrop = position
+        targetRow = row
+      })
+      row.addEventListener('dragleave', (event) => {
+        if (targetRow === row && !row.contains(event.relatedTarget as Node | null)) clearTarget()
+      })
+      row.addEventListener(
+        'drop',
+        safeAsync(async (event: DragEvent) => {
+          if (!source) return
+          const moving = source.ref.path
+          const position = placement(event)
+          finish()
+          if (!canDrop(moving, position)) return
+          event.preventDefault()
+          const treeKey = this.projectTreeKey
+          const destinationRoot = this.plugin.index.ancestorRefs(ref.path)[0] ?? ref
+          if (!(await moveProjectRows(this.plugin, [moving], ref.path, position)) || position !== 'inside') return
+          const changes = { branches: { [ref.id]: true } }
+          const destinationKey = `dotpm-project-tree:${destinationRoot.id}`
+          this.saveProjectTreePreferences(changes, destinationKey)
+          if (treeKey && treeKey !== destinationKey) this.saveProjectTreePreferences(changes, treeKey)
+          this.renderProjectTree()
+        })
+      )
+    }
   }
 
   /** The folder a project sits in. A project owns its folder, so that is the one holding it. */

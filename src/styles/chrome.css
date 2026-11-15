@@ -32,6 +32,259 @@
   position: relative;
 }
 
+.pm-project-task-layout {
+  flex: 1;
+  min-height: 0;
+  container: pm-project-tasks / inline-size;
+}
+
+.pm-project-task-split,
+.pm-project-task-main {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+}
+
+.pm-project-task-main {
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pm-project-tree {
+  --pm-project-tree-guide: color-mix(in srgb, var(--text-muted) 55%, var(--background-secondary));
+  box-sizing: border-box;
+  flex: 0 0 min(var(--pm-project-tree-width, 210px), 55%);
+  min-width: 0;
+  overflow: auto;
+  padding: 12px 8px;
+  background: var(--background-secondary);
+}
+
+.pm-project-tree-resize {
+  position: relative;
+  flex: 0 0 5px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.pm-project-tree-resize::before {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 1px;
+  background: var(--background-modifier-border);
+  content: '';
+}
+
+.pm-project-tree-resize:hover::before,
+.pm-project-tree-resize:focus-visible::before,
+.pm-project-tree-resize:active::before {
+  width: 2px;
+  background: var(--interactive-accent);
+}
+
+.pm-project-tree-heading {
+  margin: 0 6px 7px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-semibold);
+}
+
+.pm-project-tree-scope {
+  display: flex;
+  gap: 2px;
+  margin-block-end: 6px;
+  padding: 2px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+}
+
+.pm-project-tree .pm-project-tree-scope > button,
+.pm-project-tree button.pm-project-tree-parent {
+  height: auto;
+  min-height: 26px;
+  min-width: 0;
+  padding: 4px 6px;
+  border-radius: var(--radius-s);
+  box-shadow: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.3;
+  white-space: normal;
+  cursor: pointer;
+}
+
+.pm-project-tree .pm-project-tree-scope > button {
+  flex: 1;
+}
+
+.pm-project-tree .pm-project-tree-scope > button:hover,
+.pm-project-tree button.pm-project-tree-parent:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.pm-project-tree .pm-project-tree-scope > button[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--interactive-accent) 13%, transparent);
+  color: var(--text-accent);
+}
+
+.pm-project-tree button.pm-project-tree-parent {
+  display: flex;
+  width: 100%;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 6px;
+  margin-block-end: 4px;
+  text-align: start;
+}
+
+.pm-project-tree ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pm-project-tree-lists {
+  position: relative;
+}
+
+.pm-project-tree-outgoing {
+  position: absolute;
+  inset-inline: 0;
+  pointer-events: none;
+}
+
+.pm-project-tree li > ul {
+  margin-inline-start: 12px;
+  padding-inline-start: 12px;
+}
+
+.pm-project-tree li > ul > li,
+.pm-project-tree-row {
+  position: relative;
+}
+
+.pm-project-tree-guide {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: -12px;
+  width: 14px;
+  height: 100%;
+  fill: var(--pm-project-tree-guide);
+  shape-rendering: crispEdges;
+  pointer-events: none;
+}
+
+.pm-project-tree-guide:dir(rtl) {
+  transform: scaleX(-1);
+}
+
+.pm-project-tree-guide-vertical {
+  width: var(--pm-project-tree-device-pixel, 1px);
+  height: 100%;
+}
+
+.pm-project-tree li:last-child > .pm-project-tree-guide .pm-project-tree-guide-vertical {
+  height: 14px;
+}
+
+.pm-project-tree-guide-horizontal {
+  height: var(--pm-project-tree-device-pixel, 1px);
+}
+
+.pm-project-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.pm-project-tree-row[data-pm-project-drop='before'] {
+  box-shadow: inset 0 2px var(--interactive-accent);
+}
+
+.pm-project-tree-row[data-pm-project-drop='after'] {
+  box-shadow: inset 0 -2px var(--interactive-accent);
+}
+
+.pm-project-tree-row[data-pm-project-drop='inside'] {
+  border-radius: var(--radius-s);
+  box-shadow: inset 0 0 0 1px var(--interactive-accent);
+  background: color-mix(in srgb, var(--interactive-accent) 14%, transparent);
+}
+
+.pm-project-tree .pm-project-tree-dragging {
+  opacity: 0.5;
+}
+
+.pm-project-tree-fold {
+  flex: 0 0 24px;
+  width: 24px;
+}
+
+.pm-project-tree-fold[aria-expanded='true'] > svg {
+  transform: rotate(90deg);
+}
+
+.pm-project-tree-fold[aria-expanded='false']:dir(rtl) > svg {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pm-project-tree-fold > svg {
+    transition: transform 225ms cubic-bezier(0.25, 0.8, 0.35, 1);
+  }
+}
+
+.pm-project-tree button.pm-project-tree-project {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  height: auto;
+  min-height: 28px;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  box-shadow: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.pm-project-tree button.pm-project-tree-project:hover {
+  background: var(--background-modifier-hover);
+}
+
+.pm-project-tree button.pm-project-tree-project[aria-current='page'] {
+  color: var(--text-accent);
+  background: color-mix(in srgb, var(--interactive-accent) 13%, transparent);
+  font-weight: var(--font-semibold);
+}
+
+.pm-project-tree-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@container pm-project-tasks (max-width: 560px) {
+  .pm-project-task-split {
+    flex-direction: column;
+  }
+
+  .pm-project-tree {
+    flex: 0 0 auto;
+    max-height: 35%;
+    border-bottom: 1px solid var(--background-modifier-border);
+  }
+
+  .pm-project-tree-resize {
+    display: none;
+  }
+}
+
 .pm-empty-state {
   display: flex;
   flex-direction: column;

@@ -36,8 +36,10 @@ export interface ProjectSwitcherProps {
   presets: SwitcherPreset[]
   /** A name was clicked: that project alone. */
   onPick: (path: string) => void
-  /** The checked paths, the ones already in view first. */
-  onShow: (paths: string[]) => void
+  /** Enables multi-project selection and receives the checked paths. */
+  onShow?: (paths: string[]) => void
+  /** Changes the active scope directly when multi-selection is unavailable. */
+  onScopeCheck?: (path: string) => void
 }
 
 /**
@@ -70,6 +72,7 @@ export function renderProjectSwitcherPanel(
   }
 
   const selected = new Set(props.selected.filter((path) => byPath.has(path)))
+  const onShow = props.onShow
   const before = [...selected]
   const expanded = new Set<string>()
   for (const path of [...selected, ...(props.current ? [props.current] : [])]) {
@@ -83,7 +86,7 @@ export function renderProjectSwitcherPanel(
   const show = (): void => {
     if (!selected.size) return
     ended = true
-    props.onShow(ordered())
+    onShow?.(ordered())
     close()
   }
   const ordered = (): string[] => [
@@ -92,7 +95,7 @@ export function renderProjectSwitcherPanel(
   ]
 
   const root = parent.createDiv('pm-switcher')
-  const search = renderPopSearch(root, t('header.findProject'), () => renderList())
+  const search = renderPopSearch(root, t(onShow ? 'header.findProject' : 'header.findProjectName'), () => renderList())
   const presets = root.createDiv('pm-switcher-presets')
   for (const preset of props.presets) {
     new ChipButton(presets)
@@ -105,16 +108,18 @@ export function renderProjectSwitcherPanel(
       })
   }
   const list = root.createDiv('pm-pop-list pm-switcher-list')
-  const foot = root.createDiv('pm-switcher-foot pm-pop-section')
-  const summary = foot.createSpan('pm-switcher-summary')
-  const clear = new ChipButton(foot)
-    .setVariant('flat')
-    .setLabel(t('common.clear'))
-    .onClick(() => {
-      selected.clear()
-      sync()
-    })
-  const showButton = createButton(foot).setCta().onClick(show)
+  const foot = onShow ? root.createDiv('pm-switcher-foot pm-pop-section') : undefined
+  const summary = foot?.createSpan('pm-switcher-summary')
+  const clear = foot
+    ? new ChipButton(foot)
+        .setVariant('flat')
+        .setLabel(t('common.clear'))
+        .onClick(() => {
+          selected.clear()
+          sync()
+        })
+    : undefined
+  const showButton = foot ? createButton(foot).setCta().onClick(show) : undefined
 
   const boxes: { path: string; box: Checkbox }[] = []
   const sync = (): void => {
@@ -124,9 +129,9 @@ export function renderProjectSwitcherPanel(
       box.setChecked(all).setIndeterminate(covered > 0 && !all)
     }
     const tasks = [...selected].reduce((sum, path) => sum + (byPath.get(path)?.taskCount ?? 0), 0)
-    summary.setText(tn('header.selectedSummary', selected.size, { tasks: tn('header.taskCount', tasks) }))
-    clear.setDisabled(!selected.size)
-    showButton.setButtonText(tn('header.showProjects', selected.size)).setDisabled(!selected.size)
+    summary?.setText(tn('header.selectedSummary', selected.size, { tasks: tn('header.taskCount', tasks) }))
+    clear?.setDisabled(!selected.size)
+    showButton?.setButtonText(tn('header.showProjects', selected.size)).setDisabled(!selected.size)
   }
   const toggle = (path: string): void => {
     const members = branch(path)
@@ -141,10 +146,21 @@ export function renderProjectSwitcherPanel(
   const renderRow = (project: SwitcherProject, depth: number, tree: boolean): void => {
     const line = list.createDiv({ cls: 'pm-switcher-line', attr: { 'data-path': project.path } })
     line.setCssProps({ '--pm-depth': String(depth) })
-    const box = new Checkbox(line)
-      .setAriaLabel(t('header.showProject', { title: project.title }))
-      .onChange(() => toggle(project.path))
-    boxes.push({ path: project.path, box })
+    if (onShow || props.onScopeCheck) {
+      const box = new Checkbox(line).setAriaLabel(t('header.showProject', { title: project.title })).onChange(() => {
+        if (onShow) toggle(project.path)
+        else {
+          props.onScopeCheck?.(project.path)
+          end()
+        }
+      })
+      boxes.push({ path: project.path, box })
+    } else {
+      const indicator = new Checkbox(line)
+      indicator.el.disabled = true
+      indicator.el.setAttribute('aria-hidden', 'true')
+      boxes.push({ path: project.path, box: indicator })
+    }
     const kids = tree ? (children.get(project.path) ?? []) : []
     const isOpen = expanded.has(project.path)
     if (kids.length) {
@@ -163,7 +179,7 @@ export function renderProjectSwitcherPanel(
       note: kids.length && !isOpen ? `+${branch(project.path).length - 1}` : String(project.taskCount),
       selected: project.path === props.current,
       onPick: (e) => {
-        if (e.ctrlKey || e.metaKey) {
+        if (onShow && (e.ctrlKey || e.metaKey)) {
           toggle(project.path)
           return
         }
@@ -182,7 +198,8 @@ export function renderProjectSwitcherPanel(
     const query = search.value.trim().toLowerCase()
     const shown = query
       ? props.projects.filter(
-          (project) => project.title.toLowerCase().includes(query) || project.folder.toLowerCase().includes(query)
+          (project) =>
+            project.title.toLowerCase().includes(query) || (!!onShow && project.folder.toLowerCase().includes(query))
         )
       : props.projects.filter((project) => !parentOf(project.path))
     const folders = new Map<string, SwitcherProject[]>()
@@ -208,7 +225,7 @@ export function renderProjectSwitcherPanel(
 
   const rows = (): HTMLButtonElement[] => list.findAll('button.pm-switcher-row') as HTMLButtonElement[]
   root.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    if (onShow && e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault()
       show()
       return
@@ -228,7 +245,7 @@ export function renderProjectSwitcherPanel(
       const next = at + (e.key === 'ArrowDown' ? 1 : -1)
       if (next < 0) search.focus()
       else all[Math.min(next, all.length - 1)].focus()
-    } else if (e.key === ' ') {
+    } else if (onShow && e.key === ' ') {
       e.preventDefault()
       toggle(path)
     } else if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && !search.value.trim() && children.has(path)) {
@@ -240,9 +257,9 @@ export function renderProjectSwitcherPanel(
 
   renderList()
   return () => {
-    if (ended || !selected.size) return
+    if (!onShow || ended || !selected.size) return
     if (selected.size === before.length && before.every((path) => selected.has(path))) return
-    props.onShow(ordered())
+    onShow(ordered())
   }
 }
 

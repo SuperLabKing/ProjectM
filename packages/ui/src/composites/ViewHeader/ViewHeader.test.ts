@@ -1097,6 +1097,25 @@ describe('project switcher', () => {
     expect(onShow).not.toHaveBeenCalled()
   })
 
+  it('switches directly by project name when multi-project selection is disabled', () => {
+    const onPick = vi.fn<(path: string) => void>()
+    open({ onPick, onShow: undefined })
+    expect(box('web').checked).toBe(true)
+    expect(document.body.find('.pm-switcher input[type="checkbox"]:enabled')).toBeNull()
+    expect(document.body.find('.pm-switcher-foot')).toBeNull()
+    expect(document.body.find('.pm-switcher-list .pm-pop-heading')?.textContent).toBe('Clients')
+    const search = document.body.find('input.pm-pop-field') as HTMLInputElement
+    search.value = 'internal'
+    search.dispatchEvent(new Event('input'))
+    expect(rowTitles()).toEqual([])
+    search.value = 'shop'
+    search.dispatchEvent(new Event('input'))
+    ;(line('shop').find('.pm-switcher-row') as HTMLButtonElement).dispatchEvent(
+      new MouseEvent('click', { ctrlKey: true })
+    )
+    expect(onPick).toHaveBeenCalledExactlyOnceWith('shop')
+  })
+
   it('searches titles and folders as a flat list', () => {
     open()
     const search = document.body.find('input.pm-pop-field') as HTMLInputElement
