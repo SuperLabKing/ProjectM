@@ -4,6 +4,7 @@ import { coverageConfigDefaults, defineConfig } from 'vitest/config'
 export default defineConfig({
   define: {
     __STYLEGUIDE__: 'false',
+    __AGENDA_NOTICE_CSS__: JSON.stringify(''),
     __VIEWER_TEMPLATE__: JSON.stringify(''),
     __CHANGELOG__: JSON.stringify('')
   },

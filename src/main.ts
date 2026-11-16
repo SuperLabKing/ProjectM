@@ -42,6 +42,7 @@ import { ProjectView, PM_PROJECT_VIEW_TYPE } from './views/ProjectView'
 import { ProjectOverviewView, PM_PROJECT_OVERVIEW_VIEW_TYPE } from './views/ProjectOverviewView'
 import { ProjectEditView, PM_PROJECT_EDIT_VIEW_TYPE } from './views/ProjectEditView'
 import { DashboardView, PM_DASHBOARD_VIEW_TYPE } from './views/DashboardView'
+import { AgendaView, PM_AGENDA_VIEW_TYPE } from './views/AgendaView'
 import { TaskView, PM_TASK_VIEW_TYPE } from './views/TaskView'
 import { RELEASES, ReleaseNotesView, PM_RELEASE_NOTES_VIEW_TYPE } from './views/ReleaseNotesView'
 import { registerStyleguide } from './views/styleguide/StyleguideView'
@@ -57,6 +58,8 @@ import {
   promptText
 } from './ui/ModalFactory'
 import { Notifier } from './components/Notifier'
+import { AgendaSource } from './components/AgendaSource'
+import { TimedReminders } from './components/TimedReminders'
 import { AutoArchiver } from './components/AutoArchiver'
 import { IdRepair } from './components/IdRepair'
 import { migrateBoardCardConfig, migrateProjects, migrateProjectLayout, migrateTaskRefs } from './migration'
@@ -69,6 +72,8 @@ export default class PMPlugin extends Plugin {
   store!: TaskSource
   index!: VaultIndex
   notifier!: Notifier
+  agendaSource!: AgendaSource
+  timedReminders!: TimedReminders
   autoArchiver!: AutoArchiver
   idRepair!: IdRepair
   router!: PMViewRouter
@@ -114,6 +119,8 @@ export default class PMPlugin extends Plugin {
     this.store = new ProjectStore(this.app, () => this.settings, this.index)
     this.store.registerVaultSync(this)
     this.notifier = new Notifier(this)
+    this.agendaSource = new AgendaSource(this)
+    this.timedReminders = new TimedReminders(this)
     this.autoArchiver = new AutoArchiver(this)
     this.idRepair = new IdRepair(this)
     this.router = new PMViewRouter(this)
@@ -131,6 +138,7 @@ export default class PMPlugin extends Plugin {
     this.registerView(PM_PROJECT_OVERVIEW_VIEW_TYPE, (leaf) => new ProjectOverviewView(leaf, this))
     this.registerView(PM_PROJECT_EDIT_VIEW_TYPE, (leaf) => new ProjectEditView(leaf, this))
     this.registerView(PM_DASHBOARD_VIEW_TYPE, (leaf) => new DashboardView(leaf, this))
+    this.registerView(PM_AGENDA_VIEW_TYPE, (leaf) => new AgendaView(leaf, this))
     this.registerView(PM_TASK_VIEW_TYPE, (leaf) => new TaskView(leaf, this))
     this.registerView(PM_RELEASE_NOTES_VIEW_TYPE, (leaf) => new ReleaseNotesView(leaf, this))
     this.registerNoteSwap()
@@ -147,6 +155,16 @@ export default class PMPlugin extends Plugin {
 
     this.addRibbonIcon('chart-gantt', t('ribbon.openProjects'), async () => {
       await this.router.openDashboard()
+    })
+    this.addRibbonIcon(
+      'calendar-clock',
+      t('agenda.title'),
+      safeAsync(() => this.router.openAgenda())
+    )
+    this.addCommand({
+      id: 'open-agenda',
+      name: t('agenda.title'),
+      callback: safeAsync(() => this.router.openAgenda())
     })
 
     this.addCommand({
@@ -340,12 +358,14 @@ export default class PMPlugin extends Plugin {
 
     this.addSettingTab(new PMSettingTab(this.app, this))
     this.notifier.start()
+    this.timedReminders.start()
     this.autoArchiver.start()
     this.idRepair.start()
   }
 
   onunload(): void {
     this.notifier.stop()
+    this.timedReminders.stop()
     void this.localApi.stop()
   }
 

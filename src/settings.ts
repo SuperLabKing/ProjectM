@@ -3,6 +3,8 @@ import type { SettingDefinitionItem, SettingDefinitionPage } from 'obsidian'
 import type PMPlugin from './main'
 import {
   type PMSettings,
+  type AgendaNoticeEdge,
+  AGENDA_GLASS_PARAMS,
   DEFAULT_PALETTE_COLOR,
   DEFAULT_SETTINGS,
   priorityIconSetLabels,
@@ -13,6 +15,13 @@ import {
   tn
 } from '@dotpm/core'
 import { saveShortcutLabel } from './utils'
+import {
+  isSnoozeDuration,
+  MAX_SNOOZE_MINUTES,
+  snoozeDuration,
+  snoozeDurationLabel,
+  SNOOZE_PRESETS
+} from './components/snoozeDuration'
 import { renderCustomFieldFields, renderCustomFieldOptions } from '@dotpm/ui'
 import {
   countTaskNotesPaletteChanges,
@@ -23,6 +32,8 @@ import {
 import { renderPaletteFields, renderStatusDoneToggle } from './ui/PaletteListEditor'
 import { renderPersonPicker } from './ui/PersonPicker'
 import { generateToken } from './api/LocalApiServer'
+import { AgendaWindowPicker, listAgendaWindows } from './ui/agendaWindowCapture'
+import { glassValue, type GlassField } from './ui/agendaGlass'
 
 export type { PMSettings }
 export { DEFAULT_SETTINGS }
@@ -271,6 +282,37 @@ export class PMSettingTab extends PluginSettingTab {
               step: 1,
               disabled: () => !this.plugin.settings.notificationsEnabled
             }
+          },
+          {
+            name: t('settings.snoozeMinutes.name'),
+            desc: t('settings.snoozeMinutes.desc'),
+            aliases: ['notifications', 'snooze'],
+            render: (setting: Setting) => this.renderSnoozeSetting(setting)
+          },
+          {
+            name: t('settings.agendaNoticeStyle.name'),
+            desc: t('settings.agendaNoticeStyle.desc'),
+            aliases: ['notifications', 'glass', 'appearance'],
+            render: (setting: Setting) => this.renderReminderStyle(setting)
+          },
+          ...(['agendaGlassBlur', 'agendaGlassRefraction', 'agendaGlassDispersion', 'agendaGlassShade'] as const).map(
+            (key) => ({
+              name: t(`settings.${key}.name`),
+              desc: t(`settings.${key}.desc`),
+              render: (setting: Setting) => this.renderGlassNumber(setting, key)
+            })
+          ),
+          {
+            name: t('settings.agendaWindowRefraction.name'),
+            desc: t('settings.agendaWindowRefraction.desc'),
+            visible: () => Platform.isWin,
+            render: (setting: Setting) => this.renderWindowRefraction(setting)
+          },
+          {
+            name: t('settings.agendaNoticeEdge.name'),
+            desc: t('settings.agendaNoticeEdge.desc'),
+            aliases: ['notifications', 'slide', 'animation'],
+            render: (setting: Setting) => this.renderReminderEdge(setting)
           }
         ]
       },
@@ -287,6 +329,155 @@ export class PMSettingTab extends PluginSettingTab {
         items: [this.taskNotesPage()]
       }
     ]
+  }
+
+  private renderSnoozeSetting(setting: Setting): void {
+    const { settings } = this.plugin
+    const minutes = snoozeDuration(settings.snoozeMinutes)
+    const initial = SNOOZE_PRESETS.includes(minutes) ? String(minutes) : 'custom'
+    const save = (value: number): void => {
+      settings.snoozeMinutes = value
+      this.persist()
+    }
+    const input = setting.controlEl.createEl('input', {
+      type: 'number',
+      value: String(minutes),
+      attr: {
+        min: '1',
+        max: String(MAX_SNOOZE_MINUTES),
+        step: '1',
+        'aria-label': t('settings.snoozeMinutes.customLabel')
+      }
+    })
+    input.hidden = initial !== 'custom'
+    setting.addDropdown((dropdown) => {
+      for (const option of SNOOZE_PRESETS) dropdown.addOption(String(option), snoozeDurationLabel(option))
+      dropdown.addOption('custom', t('settings.snoozeMinutes.custom')).setValue(initial)
+      dropdown.selectEl.setAttribute('aria-label', t('settings.snoozeMinutes.name'))
+      dropdown.onChange((value) => {
+        input.hidden = value !== 'custom'
+        if (value === 'custom') {
+          input.focus()
+          input.select()
+        } else {
+          input.value = value
+          input.setCustomValidity('')
+          save(Number(value))
+        }
+      })
+      setting.controlEl.appendChild(input)
+    })
+    input.addEventListener('input', () => input.setCustomValidity(''))
+    input.addEventListener('change', () => {
+      if (!isSnoozeDuration(input.valueAsNumber)) {
+        input.setCustomValidity(t('settings.snoozeMinutes.desc'))
+        input.reportValidity()
+        return
+      }
+      save(input.valueAsNumber)
+    })
+  }
+
+  private renderReminderStyle(setting: Setting): void {
+    const { settings, timedReminders } = this.plugin
+    setting.addDropdown((dropdown) => {
+      dropdown
+        .addOption('plain', t('settings.agendaNoticeStyle.plain'))
+        .addOption('frosted', t('settings.agendaNoticeStyle.frosted'))
+        .addOption('liquid', t('settings.agendaNoticeStyle.liquid'))
+        .setValue(settings.agendaNoticeStyle)
+      dropdown.selectEl.setAttribute('aria-label', t('settings.agendaNoticeStyle.name'))
+      dropdown.onChange((value) => {
+        if (value !== 'plain' && value !== 'frosted' && value !== 'liquid') return
+        settings.agendaNoticeStyle = value
+        timedReminders.refreshNoticeStyle()
+        this.persist()
+      })
+    })
+    setting.addButton((button) =>
+      button
+        .setButtonText(t('settings.agendaNoticeStyle.preview'))
+        .onClick(() => timedReminders.previewNotice(setting.controlEl.ownerDocument))
+    )
+  }
+
+  private renderWindowRefraction(setting: Setting): void {
+    const { settings, timedReminders } = this.plugin
+    const describe = () => {
+      const source = timedReminders.windowSource
+      setting.setDesc(
+        source
+          ? t('settings.agendaWindowRefraction.selected', { window: source.title })
+          : t('settings.agendaWindowRefraction.desc')
+      )
+    }
+    setting.addButton((choose) => {
+      choose.setButtonText(t('settings.agendaWindowRefraction.choose')).setDisabled(!settings.agendaWindowRefraction)
+      choose.onClick(async () => {
+        try {
+          const sources = await listAgendaWindows(this.plugin)
+          if (!settings.agendaWindowRefraction) return
+          if (!sources.length) throw new Error('No eligible windows')
+          new AgendaWindowPicker(this.plugin, sources, (source) => {
+            if (!settings.agendaWindowRefraction) return
+            timedReminders.setWindowSource(source)
+            describe()
+          }).open()
+        } catch {
+          new Notice(t('settings.agendaWindowRefraction.unavailable'))
+        }
+      })
+      setting.addToggle((toggle) =>
+        toggle.setValue(settings.agendaWindowRefraction).onChange((enabled) => {
+          settings.agendaWindowRefraction = enabled
+          if (!enabled) timedReminders.setWindowSource()
+          choose.setDisabled(!enabled)
+          describe()
+          this.persist()
+        })
+      )
+    })
+    describe()
+  }
+
+  private renderReminderEdge(setting: Setting): void {
+    const { settings, timedReminders } = this.plugin
+    const edges: readonly AgendaNoticeEdge[] = ['side', 'left', 'right', 'top', 'bottom', 'nearest']
+    setting.addDropdown((dropdown) => {
+      for (const edge of edges) dropdown.addOption(edge, t(`settings.agendaNoticeEdge.${edge}`))
+      dropdown.setValue(settings.agendaNoticeEdge)
+      dropdown.selectEl.setAttribute('aria-label', t('settings.agendaNoticeEdge.name'))
+      dropdown.onChange((value) => {
+        const edge = edges.find((option) => option === value)
+        if (!edge) return
+        settings.agendaNoticeEdge = edge
+        this.persist()
+      })
+    })
+    setting.addButton((button) =>
+      button.setButtonText(t('settings.agendaNoticeStyle.preview')).onClick(() => timedReminders.previewDesktopNotice())
+    )
+  }
+
+  private renderGlassNumber(setting: Setting, key: GlassField): void {
+    const { settings, timedReminders } = this.plugin
+    const input = setting.controlEl.createEl('input', {
+      attr: {
+        type: 'number',
+        min: '0',
+        max: String(AGENDA_GLASS_PARAMS[key].max),
+        step: '1',
+        'aria-label': t(`settings.${key}.name`)
+      }
+    })
+    input.value = String(glassValue(key, settings[key]))
+    input.addEventListener('change', () => {
+      const value = glassValue(key, input.valueAsNumber)
+      input.value = String(value)
+      settings[key] = value
+      timedReminders.refreshNoticeStyle()
+      this.persist()
+    })
   }
 
   async setControlValue(key: string, value: unknown): Promise<void> {

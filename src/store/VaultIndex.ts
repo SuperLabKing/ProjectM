@@ -718,7 +718,7 @@ export class VaultIndex {
     return this.cachedTree
   }
 
-  private isExcluded(path: string): boolean {
+  isExcluded(path: string): boolean {
     return this.getSettings().excludedFolders.some((folder) => {
       const normalized = normalizePath(folder)
       return normalized !== '' && (path === normalized || path.startsWith(normalized + '/'))

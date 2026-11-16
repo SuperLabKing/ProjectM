@@ -5,6 +5,9 @@
 @import './gantt.css';
 @import './kanban.css';
 @import './overview.css';
+@import './agenda.css';
+@import './agenda-notice-card.css';
+@import './agenda-liquid.css';
 @import './release-notes.css';
 @import './task-modal.css';
 @import './project-edit.css';

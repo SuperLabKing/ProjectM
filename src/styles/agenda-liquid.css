@@ -1,0 +1,47 @@
+@media not (prefers-reduced-transparency: reduce) {
+  [data-pm-liquid-glass] {
+    --pm-liquid-fill: 39%;
+    --pm-liquid-highlight: rgb(255 255 255 / 0.72);
+    --pm-liquid-rim: rgb(255 255 255 / 0.9);
+    border-radius: 26px;
+    border-color: color-mix(in srgb, var(--pm-liquid-rim) 20%, var(--background-modifier-border));
+    background:
+      linear-gradient(color-mix(in srgb, black var(--pm-glass-shade), transparent) 0 0),
+      radial-gradient(ellipse at 0% 0%, var(--pm-liquid-highlight), transparent 48%),
+      radial-gradient(ellipse at 99% 104%, var(--pm-liquid-highlight), transparent 50%),
+      color-mix(in srgb, var(--background-primary) var(--pm-liquid-fill), transparent);
+    backdrop-filter: blur(var(--pm-glass-blur)) saturate(1.8);
+  }
+
+  .theme-dark [data-pm-liquid-glass],
+  [data-pm-liquid-glass][data-dark] {
+    --pm-liquid-fill: 56%;
+    --pm-liquid-highlight: rgb(255 255 255 / 0.21);
+    --pm-liquid-rim: rgb(255 255 255 / 0.55);
+  }
+
+  [data-pm-liquid-glass]::after {
+    position: absolute;
+    inset: 0;
+    padding: var(--pm-glass-rim-width);
+    border-radius: inherit;
+    background: conic-gradient(
+      from 300deg at 48% 48%,
+      var(--pm-liquid-rim),
+      color-mix(in srgb, #70a9ff var(--pm-glass-dispersion), transparent) 26%,
+      color-mix(in srgb, var(--pm-liquid-rim) 75%, transparent) 47%,
+      color-mix(in srgb, #ff93bd var(--pm-glass-dispersion), transparent) 68%,
+      var(--pm-liquid-rim)
+    );
+    mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+    content: '';
+  }
+
+  [data-pm-liquid-glass][data-glass-refracted] {
+    backdrop-filter: var(--pm-glass-refraction-filter) blur(var(--pm-glass-blur)) saturate(1.8);
+  }
+}

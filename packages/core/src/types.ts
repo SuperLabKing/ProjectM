@@ -358,6 +358,14 @@ export function priorityIconSetLabels(): Record<PriorityIconSet, string> {
   }
 }
 
+export type AgendaNoticeEdge = 'side' | 'left' | 'right' | 'top' | 'bottom' | 'nearest'
+export const AGENDA_GLASS_PARAMS = {
+  agendaGlassBlur: { initial: 6, max: 32 },
+  agendaGlassRefraction: { initial: 200, max: 300 },
+  agendaGlassDispersion: { initial: 40, max: 100 },
+  agendaGlassShade: { initial: 100, max: 100 }
+} as const
+
 export interface PMSettings {
   /** Where new projects are created. Projects are discovered vault-wide, wherever they live. */
   projectsFolder: string
@@ -378,6 +386,14 @@ export interface PMSettings {
   globalTeamMembers: string[]
   notificationsEnabled: boolean
   notificationLeadDays: number
+  snoozeMinutes: number
+  agendaWindowRefraction: boolean
+  agendaNoticeStyle: 'plain' | 'frosted' | 'liquid'
+  agendaNoticeEdge: AgendaNoticeEdge
+  agendaGlassBlur: number
+  agendaGlassRefraction: number
+  agendaGlassDispersion: number
+  agendaGlassShade: number
   /** Days after completion before a task moves to its project's archive. 0 turns it off. */
   autoArchiveDays: number
   /** The day the archive sweep last ran, so it runs at most once a day. */
@@ -500,6 +516,14 @@ export const DEFAULT_SETTINGS: PMSettings = {
   dateFormat: '',
   notificationsEnabled: true,
   notificationLeadDays: 2,
+  snoozeMinutes: 10,
+  agendaWindowRefraction: false,
+  agendaNoticeStyle: 'plain',
+  agendaNoticeEdge: 'side',
+  agendaGlassBlur: AGENDA_GLASS_PARAMS.agendaGlassBlur.initial,
+  agendaGlassRefraction: AGENDA_GLASS_PARAMS.agendaGlassRefraction.initial,
+  agendaGlassDispersion: AGENDA_GLASS_PARAMS.agendaGlassDispersion.initial,
+  agendaGlassShade: AGENDA_GLASS_PARAMS.agendaGlassShade.initial,
   autoArchiveDays: 0,
   lastAutoArchiveDate: '',
   autoSchedule: true,

@@ -6,7 +6,8 @@ const prod = Boolean(process.env['PRODUCTION'])
 const vaultPath = process.env['VAULT_PATH']
 const outDir = vaultPath ? `${vaultPath}/.obsidian/plugins/project-manager` : '.'
 const viewerTemplate = 'packages/viewer/dist/viewer.html'
-if (!existsSync(viewerTemplate)) console.warn('viewer template missing; run `pnpm build:viewer` first or exports will refuse')
+if (!existsSync(viewerTemplate))
+  console.warn('viewer template missing; run `pnpm build:viewer` first or exports will refuse')
 
 export default defineConfig({
   entry: 'src/main.ts',
@@ -22,6 +23,9 @@ export default defineConfig({
   outExtensions: () => ({ js: '.js' }),
   define: {
     __STYLEGUIDE__: JSON.stringify(!prod || Boolean(process.env['STYLEGUIDE'])),
+    __AGENDA_NOTICE_CSS__: JSON.stringify(
+      readFileSync('src/styles/agenda-notice-card.css', 'utf8') + readFileSync('src/styles/agenda-liquid.css', 'utf8')
+    ),
     __VIEWER_TEMPLATE__: JSON.stringify(existsSync(viewerTemplate) ? readFileSync(viewerTemplate, 'utf8') : ''),
     __CHANGELOG__: JSON.stringify(readFileSync('CHANGELOG.md', 'utf8'))
   },
