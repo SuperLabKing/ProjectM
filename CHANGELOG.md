@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.5] - 2026-11-20
+
+- Added a compact agenda sidebar with Today, Tomorrow, Next 7 days and This week views.
+- Added a read-only weekly timetable with pinned all-day items, timed blocks sized by duration and a current-time indicator.
+- Added status dots and labels in agenda lists and status dots in the timetable.
+- Added a shared source filter in the toolbar and settings, defaulting to Markdown checkboxes.
+- Preserved hover details and navigation to the original task or checklist line.
+
 ## [2.6.0] - 2026-10-06
 
 ### Highlights

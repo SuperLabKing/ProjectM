@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { Temporal } from '@dotpm/core'
-import { agendaEntries, readChecklistSchedule, reminderTime, type AgendaItem } from './agendaEntries'
+import {
+  agendaEntries,
+  agendaWeekEntries,
+  arrangeWeekSlots,
+  readChecklistSchedule,
+  reminderTime,
+  type AgendaItem
+} from './agendaEntries'
 
 describe('schedule reminders', () => {
   it('reads the picker formats and skips completed and cancelled checkboxes', () => {
@@ -47,6 +54,48 @@ describe('schedule reminders', () => {
       due: { day: '2026-11-15' }
     })
     expect(sections.upcoming.map(({ item }) => item.title)).toEqual(['upcoming'])
+  })
+
+  it('puts starts and deadlines in the Monday-to-Sunday week, including recent overdue deadlines', () => {
+    const item = { title: 'weekly', path: 'week.md', source: 'test', status: 'todo' }
+    const week = agendaWeekEntries(
+      [
+        { ...item, start: { day: '2026-11-16', time: '09:00' }, due: { day: '2026-11-16', time: '11:00' } },
+        { ...item, start: { day: '2026-11-15' }, due: { day: '2026-11-18' } },
+        { ...item, start: { day: '2026-11-22' }, due: { day: '2026-11-23' } }
+      ],
+      Temporal.PlainDate.from('2026-11-19')
+    )
+    expect(week.map(({ day }) => day.day)).toEqual([16, 17, 18, 19, 20, 21, 22])
+    expect(week.map(({ entries }) => entries.length)).toEqual([1, 0, 1, 0, 0, 0, 1])
+    expect(week[0].entries[0]).toMatchObject({ start: { time: '09:00' }, due: { time: '11:00' }, overdueDays: 3 })
+    expect(week[2].entries[0]).toMatchObject({ start: undefined, due: { day: '2026-11-18' }, overdueDays: 1 })
+    expect(week[6].entries[0]).toMatchObject({ start: { day: '2026-11-22' }, due: undefined })
+  })
+
+  it('splits an overnight interval by day and separates overlapping time blocks', () => {
+    const base = { title: 'night', path: 'week.md', source: 'test', status: 'todo' }
+    const week = agendaWeekEntries(
+      [
+        { ...base, start: { day: '2026-11-16', time: '23:30' }, due: { day: '2026-11-17', time: '01:15' } },
+        {
+          ...base,
+          title: 'review',
+          start: { day: '2026-11-17', time: '00:30' },
+          due: { day: '2026-11-17', time: '01:30' }
+        },
+        { ...base, title: 'deadline', due: { day: '2026-11-17', time: '02:00' } },
+        { ...base, title: 'all day', start: { day: '2026-11-17' } }
+      ],
+      Temporal.PlainDate.from('2026-11-16')
+    )
+    expect(week[0].entries[0].slot).toEqual({ start: 1410, end: 1440 })
+    expect(week[1].entries[0].slot).toBeUndefined()
+    expect(arrangeWeekSlots(week[1].entries).map(({ start, end, lane, lanes }) => [start, end, lane, lanes])).toEqual([
+      [0, 75, 0, 2],
+      [30, 90, 1, 2],
+      [120, undefined, 0, 1]
+    ])
   })
 
   it('chooses a single reminder time and ignores dates without a time', () => {

@@ -358,6 +358,9 @@ export function priorityIconSetLabels(): Record<PriorityIconSet, string> {
   }
 }
 
+export const AGENDA_SOURCE_FILTERS = ['checklist', 'task', 'all'] as const
+export type AgendaSourceFilter = (typeof AGENDA_SOURCE_FILTERS)[number]
+
 export type AgendaNoticeEdge = 'side' | 'left' | 'right' | 'top' | 'bottom' | 'nearest'
 export const AGENDA_GLASS_PARAMS = {
   agendaGlassBlur: { initial: 6, max: 32 },
@@ -386,6 +389,7 @@ export interface PMSettings {
   globalTeamMembers: string[]
   notificationsEnabled: boolean
   notificationLeadDays: number
+  agendaSourceFilter: AgendaSourceFilter
   snoozeMinutes: number
   agendaWindowRefraction: boolean
   agendaNoticeStyle: 'plain' | 'frosted' | 'liquid'
@@ -516,6 +520,7 @@ export const DEFAULT_SETTINGS: PMSettings = {
   dateFormat: '',
   notificationsEnabled: true,
   notificationLeadDays: 2,
+  agendaSourceFilter: 'checklist',
   snoozeMinutes: 10,
   agendaWindowRefraction: false,
   agendaNoticeStyle: 'plain',

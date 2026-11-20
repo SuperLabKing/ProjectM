@@ -1,4 +1,4 @@
-import { TFile, type ViewState, type WorkspaceLeaf } from 'obsidian'
+import { Platform, TFile, type ViewState, type WorkspaceLeaf } from 'obsidian'
 import type PMPlugin from '#main'
 import type { ScopeSpec } from '#store'
 import { PM_DASHBOARD_VIEW_TYPE } from './DashboardView'
@@ -25,7 +25,11 @@ export class PMViewRouter {
   }
 
   async openAgenda(): Promise<void> {
-    await this.plugin.app.workspace.ensureSideLeaf(PM_AGENDA_VIEW_TYPE, 'right', { reveal: true, active: true })
+    await this.plugin.app.workspace.ensureSideLeaf(PM_AGENDA_VIEW_TYPE, Platform.isMobile ? 'right' : 'left', {
+      split: !Platform.isMobile,
+      reveal: true,
+      active: true
+    })
   }
 
   async openProject(file: TFile): Promise<void> {

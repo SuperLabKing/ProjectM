@@ -10,6 +10,7 @@ import {
   hydrateFilter,
   hydrateSort,
   legacyBoardFields,
+  type AgendaSourceFilter,
   type PMSettings,
   type Project,
   type Task,
@@ -689,6 +690,15 @@ export default class PMPlugin extends Plugin {
 
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings)
+  }
+
+  async setAgendaSourceFilter(filter: AgendaSourceFilter): Promise<void> {
+    if (this.settings.agendaSourceFilter === filter) return
+    this.settings.agendaSourceFilter = filter
+    for (const leaf of this.app.workspace.getLeavesOfType(PM_AGENDA_VIEW_TYPE)) {
+      if (leaf.view instanceof AgendaView) leaf.view.applySourceFilter()
+    }
+    await this.saveSettings()
   }
 
   refreshProjectTrees(): void {

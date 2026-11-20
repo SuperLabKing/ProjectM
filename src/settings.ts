@@ -5,6 +5,7 @@ import {
   type PMSettings,
   type AgendaNoticeEdge,
   AGENDA_GLASS_PARAMS,
+  AGENDA_SOURCE_FILTERS,
   DEFAULT_PALETTE_COLOR,
   DEFAULT_SETTINGS,
   priorityIconSetLabels,
@@ -22,7 +23,7 @@ import {
   snoozeDurationLabel,
   SNOOZE_PRESETS
 } from './components/snoozeDuration'
-import { renderCustomFieldFields, renderCustomFieldOptions } from '@dotpm/ui'
+import { renderCustomFieldFields, renderCustomFieldOptions, safeAsync } from '@dotpm/ui'
 import {
   countTaskNotesPaletteChanges,
   getTaskNotesApi,
@@ -281,6 +282,23 @@ export class PMSettingTab extends PluginSettingTab {
               max: 14,
               step: 1,
               disabled: () => !this.plugin.settings.notificationsEnabled
+            }
+          },
+          {
+            name: t('agenda.sourceFilter'),
+            desc: t('settings.agendaSourceFilter.desc'),
+            render: (setting: Setting) => {
+              setting.addDropdown((dropdown) => {
+                for (const filter of AGENDA_SOURCE_FILTERS)
+                  dropdown.addOption(filter, t(`agenda.sourceFilter.${filter}`))
+                dropdown.selectEl.setAttribute('aria-label', t('agenda.sourceFilter'))
+                dropdown.setValue(this.plugin.settings.agendaSourceFilter).onChange(
+                  safeAsync(async (value) => {
+                    const filter = AGENDA_SOURCE_FILTERS.find((option) => option === value)
+                    if (filter) await this.plugin.setAgendaSourceFilter(filter)
+                  })
+                )
+              })
             }
           },
           {
