@@ -27,6 +27,8 @@ import { renderAddButton, childTreeGuides, compareTasks } from '@dotpm/ui'
 import { openTaskModal } from '#ui/ModalFactory'
 import { openAddTask } from '../addTask'
 import { renderTaskRow, updateSelectedRow, updateSelectAllCheckbox } from './TableRow'
+import { attachColumnResize, createTableColumns, FILL_TITLE_WIDTH } from './TableColumns'
+import { attachColumnAlignment, syncTableCellAlignment } from './TableColumnAlignment'
 import { TreeRowDrag, type TreeDrop } from '../TreeRowDrag'
 import { assignGroup, saveProjectGroups } from '#store/ProjectTaskGroups'
 import {
@@ -69,7 +71,8 @@ export interface TableState {
   windowEnd: number
   renderWindow: (() => void) | null
   rowDrag?: TreeRowDrag
-  renderLinkedRow?: (row: TableTreeRow) => HTMLTableRowElement | undefined
+  appendUnrenderedColumnCells?: (body: HTMLTableSectionElement, column: string) => void
+  renderLinkedRow?: (row: TableTreeRow, measureColumn?: string) => HTMLTableRowElement | undefined
   windowLength: number
 }
 
@@ -93,12 +96,9 @@ export interface TableContext {
   onSelectionChange: () => void
   onBulkDelete: () => void
   onSortChange: () => void
-  /** A column was resized, or dragged narrow enough to hide. */
+  /** A column was resized. */
   onFieldsChange: () => void
 }
-
-/** A column dragged narrower than this hides instead. */
-const HIDE_BELOW = 24
 
 export function renderTable(ctx: TableContext): void {
   if (ctx.scope.spec.kind === 'project') {
@@ -121,7 +121,17 @@ export function renderTable(ctx: TableContext): void {
       ctx.state.renderWindow?.()
     })
   })
-  const table = wrapper.createEl('table', { cls: 'pm-table' })
+  const table = wrapper.createEl('table', { cls: 'pm-table pm-task-table' })
+  const updateWidth = createTableColumns(
+    table,
+    [34, 32, 32],
+    ctx.columns.map((id) => ({
+      id,
+      defaultWidth: columnWidth({}, id) ?? FILL_TITLE_WIDTH,
+      width: columnWidth(ctx.fields, id)
+    })),
+    40
+  )
   ctx.state.rowDrag =
     ctx.manualOrder || groupsFor(ctx).length > 0
       ? new TreeRowDrag(
@@ -159,7 +169,7 @@ export function renderTable(ctx: TableContext): void {
     ctx.onSelectionChange()
   })
 
-  hrow.createEl('th').setCssStyles({ width: '32px' })
+  hrow.createEl('th')
   const sortableHeaders: { key: SortKey; th: HTMLElement }[] = []
   const paintSortIndicators = () => {
     for (const { key, th } of sortableHeaders) {
@@ -179,8 +189,6 @@ export function renderTable(ctx: TableContext): void {
   for (const id of ctx.columns) {
     const label = viewFieldLabel(id, customFields)
     const th = hrow.createEl('th')
-    const width = columnWidth(ctx.fields, id)
-    th.setCssStyles({ width: width === undefined ? 'auto' : `${width}px` })
     const key = ctx.manualOrder ? undefined : SORT_KEYS.find((k) => k === id)
     if (key) {
       th.addClass('pm-table-th-sortable')
@@ -206,13 +214,26 @@ export function renderTable(ctx: TableContext): void {
     } else {
       th.setText(label)
     }
-    if (width !== undefined) attachColumnResize(th, id, ctx)
+    attachColumnAlignment(th, id, ctx.plugin, ctx.scope.key)
+    attachColumnResize(
+      th,
+      table,
+      id,
+      (width) => updateWidth(id, width ?? columnWidth(ctx.fields, id)),
+      (width) => {
+        const list = (ctx.fields.table ??= { visible: [...ctx.columns] })
+        list.widths = { ...list.widths, [id]: width }
+        tidyFields(ctx.fields, ctx.scope.fieldCatalog())
+        calibrateRowHeight(ctx)
+        ctx.onFieldsChange()
+      },
+      (body) => ctx.state.appendUnrenderedColumnCells?.(body, id)
+    )
   }
   paintSortIndicators()
 
   // Actions column, which must stay last.
-  const actionsTh = hrow.createEl('th')
-  actionsTh.setCssStyles({ width: '40px' })
+  hrow.createEl('th')
 
   ctx.state.tableBody = table.createEl('tbody')
   fillTableBody(ctx)
@@ -289,48 +310,6 @@ async function moveTaskRows(ctx: TableContext, sources: string[], target: string
     await plugin.saveSettings()
   }
   await ctx.onRefresh()
-}
-
-/**
- * Dragging a header's right edge sets that column's width in the view; letting go below
- * `HIDE_BELOW` hides the column instead.
- */
-function attachColumnResize(th: HTMLElement, id: string, ctx: TableContext): void {
-  th.addClass('pm-table-th-resizable')
-  const handle = th.createDiv({ cls: 'pm-table-resize', attr: { 'aria-label': t('table.resizeColumn') } })
-  handle.addEventListener('click', (e) => e.stopPropagation())
-  handle.addEventListener('pointerdown', (down: PointerEvent) => {
-    down.preventDefault()
-    down.stopPropagation()
-    handle.setPointerCapture(down.pointerId)
-    const startWidth = th.offsetWidth
-    let width = startWidth
-    th.addClass('is-resizing')
-    const move = (e: PointerEvent): void => {
-      width = Math.max(0, Math.round(startWidth + e.clientX - down.clientX))
-      th.setCssStyles({ width: `${width}px` })
-      th.toggleClass('is-hiding', width < HIDE_BELOW)
-    }
-    const up = (): void => {
-      handle.removeEventListener('pointermove', move)
-      handle.removeEventListener('pointerup', up)
-      handle.removeEventListener('pointercancel', up)
-      th.removeClass('is-resizing', 'is-hiding')
-      if (width === startWidth) return
-      const list = (ctx.fields.table ??= { visible: [...ctx.columns] })
-      if (width < HIDE_BELOW) {
-        list.visible = ctx.columns.filter((column) => column !== id)
-        if (list.widths) Reflect.deleteProperty(list.widths, id)
-      } else {
-        list.widths = { ...list.widths, [id]: width }
-      }
-      tidyFields(ctx.fields, ctx.scope.fieldCatalog())
-      ctx.onFieldsChange()
-    }
-    handle.addEventListener('pointermove', move)
-    handle.addEventListener('pointerup', up)
-    handle.addEventListener('pointercancel', up)
-  })
 }
 
 export function refreshTableBody(ctx: TableContext): void {
@@ -455,6 +434,25 @@ function renderWindowRows(ctx: TableContext): void {
   state.windowStart = start
   state.windowEnd = end
 
+  // Linked rows supply their renderer only during this pass. Keep it together with
+  // the actual filtered and grouped rows so fitting does not need to scroll the view.
+  const renderLinked = state.renderLinkedRow
+  state.appendUnrenderedColumnCells = (body, column) => {
+    for (const [index, row] of rows.entries()) {
+      if ((index >= start && index < end) || !('task' in row)) continue
+      if (row.task.id.startsWith(LINKED_ROW_PREFIX)) {
+        const element = renderLinked?.(row, column)
+        const cell = element?.cells[2]
+        if (element && cell) {
+          element.replaceChildren(cell)
+          body.append(element)
+        }
+      } else {
+        renderTaskRow(body, row, ctx, column)
+      }
+    }
+  }
+
   tbody.empty()
   if (start > 0) spacerRow(tbody, colCount, start * state.rowHeight)
   for (let i = start; i < end; i++) {
@@ -480,6 +478,8 @@ function renderWindowRows(ctx: TableContext): void {
     openAddTask(ctx.plugin, ctx.scope, { event: e, onSave: () => ctx.onRefresh() })
   })
 
+  const table = tbody.closest('table')
+  if (table) syncTableCellAlignment(table)
   calibrateRowHeight(ctx)
 }
 
@@ -529,7 +529,7 @@ export function handleTableKeyDown(e: KeyboardEvent, ctx: TableContext): void {
     active instanceof HTMLInputElement ||
     active instanceof HTMLTextAreaElement ||
     (active instanceof HTMLElement && active.contentEditable === 'true')
-  if (active?.closest('.pm-task-group-row, .pm-task-group-actions')) return
+  if (e.defaultPrevented || active?.closest('.pm-task-group-row, .pm-task-group-actions, .pm-table-resize')) return
 
   if (e.key === 'Escape') {
     if (isInput) {

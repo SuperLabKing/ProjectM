@@ -101,6 +101,18 @@ export class PMSettingTab extends PluginSettingTab {
             }
           },
           {
+            name: t('settings.projectTimelineLayout.name'),
+            desc: t('settings.projectTimelineLayout.desc'),
+            control: {
+              type: 'dropdown',
+              key: 'projectTimelineLayout',
+              options: {
+                drilldown: t('settings.projectTimelineLayout.drilldown'),
+                nested: t('settings.projectTimelineLayout.nested')
+              }
+            }
+          },
+          {
             name: t('settings.taskEditorSurface.name'),
             desc: t('settings.taskEditorSurface.desc'),
             control: {

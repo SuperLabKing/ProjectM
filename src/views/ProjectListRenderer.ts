@@ -15,12 +15,14 @@ import {
 } from '@dotpm/core'
 import { safeAsync, CollapseToggle, ProjectRow, projectFieldLabel } from '@dotpm/ui'
 import { linkedRefs } from './linkedRefs'
+import { attachColumnResize, createTableColumns, FILL_TITLE_WIDTH } from './table/TableColumns'
+import { attachColumnAlignment, syncTableCellAlignment } from './table/TableColumnAlignment'
 import { TreeRowDrag } from './TreeRowDrag'
 import { moveProjectRows, projectDropParent } from './projectHierarchy'
 
 type ProjectColumn = 'title' | ProjectListField
 const COLUMN_WIDTHS: Record<ProjectColumn, number> = {
-  title: 180,
+  title: FILL_TITLE_WIDTH,
   progress: 140,
   tasks: 84,
   members: 100,
@@ -28,7 +30,6 @@ const COLUMN_WIDTHS: Record<ProjectColumn, number> = {
   due: 88,
   completed: 96
 }
-const MIN_COLUMN_WIDTH = 48
 
 export interface ProjectListContext {
   plugin: PMPlugin
@@ -77,49 +78,28 @@ export function renderProjectTable(
   const table = wrapper.createEl('table', { cls: 'pm-table pm-project-table' })
   const manual = ctx.plugin.settings.projectManualOrder !== false
   const columns: ProjectColumn[] = ['title', ...ctx.fields]
-  const colgroup = table.createEl('colgroup')
-  const numberWidth = 34
-  const gutterWidth = manual ? 54 : 32
-  colgroup.createEl('col').setCssStyles({ width: `${numberWidth}px` })
-  colgroup.createEl('col').setCssStyles({ width: `${gutterWidth}px` })
-  const widths = new Map<ProjectColumn, number>()
-  const elements = new Map(
-    columns.map((id) => {
-      const col = colgroup.createEl('col')
-      const saved = ctx.plugin.settings.projectColumnWidths?.[id]
-      if (typeof saved === 'number' && Number.isFinite(saved) && saved >= MIN_COLUMN_WIDTH) widths.set(id, saved)
-      return [id, col] as const
-    })
+  const updateWidth = createTableColumns(
+    table,
+    [34, manual ? 54 : 32],
+    columns.map((id) => ({
+      id,
+      defaultWidth: COLUMN_WIDTHS[id],
+      width: ctx.plugin.settings.projectColumnWidths?.[id]
+    })),
+    40
   )
-  const actionsWidth = 40
-  colgroup.createEl('col', { cls: 'pm-project-col-actions' }).setCssStyles({ width: `${actionsWidth}px` })
-  const updateWidths = (titleWidth = widths.get('title')): void => {
-    let total = numberWidth + gutterWidth + actionsWidth
-    for (const id of columns) {
-      const width = id === 'title' ? titleWidth : (widths.get(id) ?? COLUMN_WIDTHS[id])
-      elements.get(id)?.style.setProperty('width', width === undefined ? '' : `${width}px`)
-      total += width ?? COLUMN_WIDTHS[id]
-    }
-    table.setCssStyles({ width: titleWidth === undefined ? `max(100%, ${total}px)` : `${total}px` })
-  }
-  updateWidths()
   const headRow = table.createEl('thead').createEl('tr')
   headRow.createEl('th', { cls: 'pm-table-cell-number', attr: { scope: 'col', 'aria-label': t('table.rowNumber') } })
   headRow.createEl('th')
   for (const id of columns) {
     const label = id === 'title' ? t('columns.project') : projectFieldLabel(id)
     const th = headRow.createEl('th', { text: label, cls: 'pm-table-th-resizable' })
-    attachProjectColumnResize(
+    attachColumnAlignment(th, id, ctx.plugin, 'dashboard')
+    attachColumnResize(
       th,
       table,
-      (width, titleWidth) => {
-        if (width === undefined) {
-          const saved = ctx.plugin.settings.projectColumnWidths?.[id]
-          if (saved !== undefined) widths.set(id, saved)
-          else widths.delete(id)
-        } else widths.set(id, width)
-        updateWidths(widths.get('title') ?? titleWidth)
-      },
+      id,
+      (width) => updateWidth(id, width ?? ctx.plugin.settings.projectColumnWidths?.[id]),
       (width) => {
         ctx.plugin.settings.projectColumnWidths = { ...ctx.plugin.settings.projectColumnWidths, [id]: width }
         safeAsync(() => ctx.plugin.saveSettings())()
@@ -182,82 +162,7 @@ export function renderProjectTable(
     }
     if (!collapsed) for (const [index, row] of group.rows.entries()) renderRow(ctx, tbody, row, index + 1, drag)
   }
-}
-
-function attachProjectColumnResize(
-  th: HTMLTableCellElement,
-  table: HTMLTableElement,
-  preview: (width?: number, titleWidth?: number) => void,
-  save: (width: number) => void
-): void {
-  const label = t('table.fitProjectColumn')
-  const handle = th.createDiv({
-    cls: 'pm-table-resize',
-    attr: { tabindex: '0', role: 'button', 'aria-label': label, title: label }
-  })
-  const titleWidth = () =>
-    Math.round(table.tHead?.querySelector('.pm-table-th-resizable')?.getBoundingClientRect().width ?? 0)
-  const fit = () => {
-    const width = fitProjectColumn(table, th)
-    preview(width, titleWidth())
-    save(width)
-  }
-  handle.addEventListener('dblclick', fit)
-  handle.addEventListener('keydown', (event) => {
-    if (event.key !== 'Enter' && event.key !== ' ') return
-    event.preventDefault()
-    fit()
-  })
-  handle.addEventListener('pointerdown', (event) => {
-    if (event.button !== 0 || !event.isPrimary) return
-    event.preventDefault()
-    const initial = Math.round(th.getBoundingClientRect().width)
-    const fixedTitle = titleWidth()
-    let width = initial
-    let moved = false
-    handle.setPointerCapture(event.pointerId)
-    th.addClass('is-resizing')
-    const listeners = new AbortController()
-    const options = { capture: true, signal: listeners.signal }
-    const move = (next: PointerEvent) => {
-      if (next.pointerId !== event.pointerId) return
-      width = Math.max(MIN_COLUMN_WIDTH, Math.round(initial + next.clientX - event.clientX))
-      if (!moved && width === initial) return
-      moved = true
-      preview(width, fixedTitle)
-    }
-    const finish = (end: PointerEvent) => {
-      if (end.pointerId !== event.pointerId) return
-      listeners.abort()
-      th.removeClass('is-resizing')
-      if (end.type === 'pointerup' && width !== initial) save(width)
-      else if (moved) preview()
-    }
-    const doc = handle.ownerDocument
-    doc.addEventListener('pointermove', move, options)
-    doc.addEventListener('pointerup', finish, options)
-    doc.addEventListener('pointercancel', finish, options)
-    handle.addEventListener('lostpointercapture', finish, options)
-  })
-}
-
-/** Measure the actual header and shown rows at their intrinsic width, outside the sized grid. */
-function fitProjectColumn(table: HTMLTableElement, th: HTMLTableCellElement): number {
-  const measure = table.ownerDocument.createElement('table')
-  measure.className = 'pm-table pm-project-table pm-project-table-measure'
-  measure.setAttribute('aria-hidden', 'true')
-  const header = measure.createTHead().insertRow()
-  const heading = header.appendChild(th.cloneNode(true) as HTMLTableCellElement)
-  heading.querySelector('.pm-table-resize')?.remove()
-  const body = measure.createTBody()
-  for (const row of table.querySelectorAll<HTMLTableRowElement>('.pm-project-row')) {
-    const copy = body.appendChild(row.cloneNode(false) as HTMLTableRowElement)
-    copy.appendChild(row.cells[th.cellIndex].cloneNode(true))
-  }
-  table.after(measure)
-  const width = Math.ceil(heading.getBoundingClientRect().width) + 8
-  measure.remove()
-  return Math.max(MIN_COLUMN_WIDTH, width)
+  syncTableCellAlignment(table)
 }
 
 function groupLabel(groupBy: ProjectGroupBy, key: string): string {

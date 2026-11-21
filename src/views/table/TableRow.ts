@@ -37,14 +37,14 @@ import { animateTableFold } from './animateTableFold'
 export function renderTaskRow(
   tbody: HTMLElement,
   flat: TableTreeRow,
-  ctx: TableContext
+  ctx: TableContext,
+  measureColumn?: string
 ): HTMLTableRowElement | undefined {
   const { task, depth } = flat
   // One row belongs to one project, so ownership is resolved here and used throughout.
   const project = ctx.scope.projectOf(task.id)
   if (!project) return
   const isDone = isTerminalStatus(task.status, ctx.scope.configOf(task.id).statuses)
-  const statusConfig = getStatusConfig(ctx.statuses, task.status)
 
   const { el: row } = new TaskRow(tbody, {
     taskId: task.id,
@@ -57,6 +57,11 @@ export function renderTaskRow(
       updateSelectedRow(ctx.state)
     }
   })
+
+  if (measureColumn !== undefined) {
+    renderTaskCells(row, flat, project, ctx, [measureColumn])
+    return row
+  }
 
   new SelectCell(row, {
     checked: ctx.state.selectedTaskIds.has(task.id),
@@ -101,8 +106,29 @@ export function renderTaskRow(
     })
   })
 
+  renderTaskCells(row, flat, project, ctx, ctx.columns)
+
+  new ActionsCell(row, {
+    onClick: (e) => {
+      const menu = new Menu()
+      buildTaskContextMenu(menu, task, { plugin: ctx.plugin, project, onRefresh: ctx.onRefresh })
+      menu.showAtMouseEvent(e)
+    }
+  })
+  ctx.state.rowDrag?.attach(row, task.id)
+  return row
+}
+
+function renderTaskCells(
+  row: HTMLElement,
+  flat: TableTreeRow,
+  project: Project,
+  ctx: TableContext,
+  columns: string[]
+): void {
+  const { task } = flat
   const customFields = ctx.scope.customFields()
-  for (const column of ctx.columns) {
+  for (const column of columns) {
     switch (column) {
       case 'title':
         renderTitleCell(row, flat, project, ctx)
@@ -163,7 +189,7 @@ export function renderTaskRow(
       case 'progress':
         new ProgressCell(row, {
           value: task.progress,
-          color: statusConfig?.color ?? 'var(--interactive-accent)',
+          color: getStatusConfig(ctx.statuses, task.status)?.color ?? 'var(--interactive-accent)',
           onSave: async (progress) => {
             await ctx.plugin.store.updateTask(project, task.id, { progress })
             await ctx.onRefresh()
@@ -181,15 +207,6 @@ export function renderTaskRow(
     }
   }
 
-  new ActionsCell(row, {
-    onClick: (e) => {
-      const menu = new Menu()
-      buildTaskContextMenu(menu, task, { plugin: ctx.plugin, project, onRefresh: ctx.onRefresh })
-      menu.showAtMouseEvent(e)
-    }
-  })
-  ctx.state.rowDrag?.attach(row, task.id)
-  return row
 }
 
 function renderTitleCell(row: HTMLElement, flat: TableTreeRow, project: Project, ctx: TableContext): void {

@@ -370,6 +370,13 @@ export const AGENDA_GLASS_PARAMS = {
   agendaGlassShade: { initial: 100, max: 100 }
 } as const
 
+export type TableAlignment = 'left' | 'center' | 'right'
+
+export interface TableColumnAlignment {
+  header?: TableAlignment
+  cell?: TableAlignment
+}
+
 export interface PMSettings {
   /** Where new projects are created. Projects are discovered vault-wide, wherever they live. */
   projectsFolder: string
@@ -412,6 +419,7 @@ export interface PMSettings {
   dateFormat: string
   saveTaskOnClose: boolean
   taskEditorSurface: 'modal' | 'tab' | 'panel'
+  projectTimelineLayout: 'drilldown' | 'nested'
   editingEnhancements?: Record<string, unknown>
   /** Key shortcut to create or save tasks and projects. */
   editorSaveModifier: 'Shift' | 'Mod'
@@ -435,6 +443,7 @@ export interface PMSettings {
   showArchivedProjects: boolean
   projectList: ProjectListState
   projectColumnWidths?: Partial<Record<'title' | ProjectListField, number>>
+  tableColumnAlignments?: Record<string, Record<string, TableColumnAlignment>>
   projectOrder?: string[]
   projectManualOrder?: boolean
   projectListViews: ProjectListView[]
@@ -538,6 +547,7 @@ export const DEFAULT_SETTINGS: PMSettings = {
   pullForwardOnEarlyFinish: false,
   saveTaskOnClose: true,
   taskEditorSurface: 'modal',
+  projectTimelineLayout: 'drilldown',
   editorSaveModifier: 'Shift',
   projectSurface: 'overview',
   projectTab: 'new',

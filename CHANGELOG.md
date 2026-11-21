@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.7] - 2026-11-21
+
+- Integrated live Markdown editing, date picking, checklist timing, and linked note controls into ProjectMaster.
+- Added Work History to the timeline with dated activity, optional plans, and a current or all projects scope.
+- Kept the project schedule with nested and drill-down layouts, date navigation, and remembered project ranges.
+- Improved table resizing, full-result column fitting, and independent header and cell alignment.
+- Kept the project tree in place when opening a subproject.
+
 ## [0.0.5] - 2026-11-20
 
 - Added a compact agenda sidebar with Today, Tomorrow, Next 7 days and This week views.

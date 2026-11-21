@@ -3,6 +3,8 @@
 @import './view-header.css';
 @import './table.css';
 @import './gantt.css';
+@import './project-timeline.css';
+@import './work-history.css';
 @import './kanban.css';
 @import './overview.css';
 @import './agenda.css';

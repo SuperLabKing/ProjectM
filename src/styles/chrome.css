@@ -337,21 +337,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.pm-project-table .pm-table-resize {
-  width: 8px;
-  touch-action: none;
-}
-.pm-project-table .pm-table-resize:focus-visible {
-  background: var(--interactive-accent);
-}
-.pm-project-table.pm-project-table-measure {
-  position: fixed;
-  inset: 0 auto auto 0;
-  table-layout: auto;
-  width: max-content;
-  visibility: hidden;
-  pointer-events: none;
-}
 .pm-project-row-icon {
   flex-shrink: 0;
   display: inline-flex;

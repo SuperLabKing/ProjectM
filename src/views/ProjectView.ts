@@ -95,6 +95,7 @@ import type { SubView } from './SubView'
 import { TableView } from './table/TableView'
 import type { ExportViewState } from '../export/snapshot'
 import { GanttView } from './gantt/GanttView'
+import { TimelineWorkspaceView } from './gantt/TimelineWorkspaceView'
 import { KanbanView } from './KanbanView'
 import { openTaskModal } from '#ui/ModalFactory'
 import { TaskDetailPanel } from './TaskDetailPanel'
@@ -142,7 +143,7 @@ const sortFields = (config?: ResolvedProjectConfig): SortField[] => [
 
 /** One of a mode's own controls, as the options slot, the Tune list and the More menu draw it. */
 interface ViewOption {
-  id: 'today' | 'scale' | 'days' | 'collapse'
+  id: 'today' | 'scale' | 'days' | 'collapse' | 'timeline-mode'
   icon: string
   label: string
   /** The current value: the Tune list's faint state, and the chip's text when `chip` is `value`. */
@@ -178,12 +179,14 @@ export class ProjectView extends ItemView {
   zoom = 100
   granularity: GanttGranularity
   private subview: SubView | null = null
+  private editingTimeline = false
   private headerEl!: HTMLElement
   private projectTreeEl!: HTMLElement
   private projectTreeResize!: HTMLElement
   private projectTreeToggle: HTMLElement | null = null
   private projectTreeOpen = !Platform.isPhone
   private projectTreeKey: string | undefined
+  private projectTreeAnchorPath: string | undefined
   private taskDetails?: TaskDetailPanel
   private bodyEl!: HTMLElement
   private emptyEl!: HTMLElement
@@ -276,6 +279,7 @@ export class ProjectView extends ItemView {
     const spec = specOf(state)
     if (typeof state.anchor === 'string') this.anchorPath = state.anchor
     if (spec && (!this.spec || scopeKey(this.spec) !== scopeKey(spec))) {
+      this.editingTimeline = false
       this.spec = spec
       await this.loadScope()
     }
@@ -353,6 +357,7 @@ export class ProjectView extends ItemView {
           void this.loadScope()
         } else {
           this.renderProjectTree()
+          if (this.subview instanceof TimelineWorkspaceView) void this.refreshProject()
         }
       })
     )
@@ -616,7 +621,7 @@ export class ProjectView extends ItemView {
   /** Replaces a body the filter has emptied with a way back: the one condition that frees the most tasks. */
   private syncFilterEmpty(counts: { shown: number; total: number }): void {
     const scope = this.projectScope
-    const emptied = !!scope && isQueryActive(this.query) && counts.shown === 0 && counts.total > 0
+    const emptied = !this.timelineOverview && !!scope && isQueryActive(this.query) && counts.shown === 0 && counts.total > 0
     this.emptyEl.empty()
     this.emptyEl.toggleClass('pm-hidden', !emptied)
     this.bodyEl.toggleClass('pm-hidden', emptied)
@@ -756,6 +761,7 @@ export class ProjectView extends ItemView {
 
   private switchMode(mode: ViewMode): void {
     if (mode === this.currentView) return
+    this.editingTimeline = false
     this.currentView = mode
     this.renderHeader()
     this.renderCurrentView()
@@ -905,9 +911,18 @@ export class ProjectView extends ItemView {
     const spec = this.projectScope?.spec
     const index = this.plugin.index
     const active = spec?.kind === 'project' ? index.projectRef(spec.path) : undefined
-    const treeScopeKey = active ? `dotpm-project-tree-scope:${active.id}` : undefined
+    const ancestors = active ? index.ancestorRefs(active.path) : []
+    const previousAnchor = this.projectTreeAnchorPath ? index.projectRef(this.projectTreeAnchorPath) : null
+    const keepAll = previousAnchor && this.app.loadLocalStorage(`dotpm-project-tree-scope:${previousAnchor.id}`) === 'all'
+    const relatedAnchor = ancestors.find((ref) => ref.path === previousAnchor?.path)
+    const anchor = active
+      ? relatedAnchor ?? (keepAll ? previousAnchor : active)
+      : undefined
+    this.projectTreeAnchorPath = anchor?.path
+    const treeScopeKey = anchor ? `dotpm-project-tree-scope:${anchor.id}` : undefined
     const treeScope = treeScopeKey && this.app.loadLocalStorage(treeScopeKey) === 'all' ? 'all' : 'current'
-    const treeView = active ? `${treeScope}:${active.id}` : undefined
+    const treeView = anchor ? `${treeScope}:${anchor.id}` : undefined
+    const scrollTop = nav.dataset.projectTreeView === treeView ? nav.scrollTop : 0
     const win = nav.ownerDocument.defaultView
     const outgoing =
       treeView &&
@@ -921,9 +936,8 @@ export class ProjectView extends ItemView {
     const outgoingOpacity = outgoing && win?.getComputedStyle(outgoing).opacity
     outgoing?.getAnimations().forEach((animation) => animation.cancel())
     nav.empty()
-    if (active) {
-      const ancestors = index.ancestorRefs(active.path)
-      const root = ancestors[0] ?? active
+    if (active && anchor) {
+      const root = index.ancestorRefs(anchor.path)[0] ?? anchor
       const parent = ancestors.at(-1)
       const showAll = treeScope === 'all'
       const includeArchived = this.plugin.settings.showArchivedProjects || index.isArchived(active.path)
@@ -935,7 +949,7 @@ export class ProjectView extends ItemView {
         this.setProjectTreeWidth(preferences.width ?? PROJECT_TREE_WIDTH.initial)
       }
       const { branches } = this.projectTreePreferences()
-      const defaultExpanded = new Set([active.id, ...ancestors.map((ref) => ref.id)])
+      const defaultExpanded = new Set([anchor.id, ...ancestors.map((ref) => ref.id)])
       nav.createDiv({ cls: 'pm-project-tree-heading', text: t('header.projectTree') })
       const scope = nav.createDiv({
         cls: 'pm-project-tree-scope',
@@ -955,7 +969,10 @@ export class ProjectView extends ItemView {
         })
         button.addEventListener('click', () => {
           if (treeScope === mode || !treeScopeKey) return
-          this.app.saveLocalStorage(treeScopeKey, mode)
+          if (mode === 'current' && anchor.path !== active.path && !relatedAnchor) {
+            this.projectTreeAnchorPath = active.path
+            this.app.saveLocalStorage(`dotpm-project-tree-scope:${active.id}`, mode)
+          } else this.app.saveLocalStorage(treeScopeKey, mode)
           this.renderProjectTree()
         })
       }
@@ -973,7 +990,7 @@ export class ProjectView extends ItemView {
       }
       const drag =
         this.plugin.settings.projectManualOrder !== false
-          ? this.projectTreeReorder(showAll ? undefined : active.path)
+          ? this.projectTreeReorder(showAll ? undefined : anchor.path)
           : undefined
       const renderNode = (list: HTMLElement, ref: ProjectRef): void => {
         const children = index.childRefs(ref.path, includeArchived)
@@ -1051,7 +1068,7 @@ export class ProjectView extends ItemView {
       const lists = nav.createDiv('pm-project-tree-lists')
       const list = lists.createEl('ul')
       nav.dataset.projectTreeView = treeView
-      const roots = showAll ? index.orderedProjectRefs(index.rootRefs(includeArchived)) : [active]
+      const roots = showAll ? index.orderedProjectRefs(index.rootRefs(includeArchived)) : [anchor]
       for (const ref of roots) renderNode(list, ref)
       if (outgoing && outgoingTop !== undefined) {
         const motion = { duration: 230, easing: 'cubic-bezier(0.25, 0.8, 0.35, 1)' }
@@ -1076,6 +1093,7 @@ export class ProjectView extends ItemView {
       delete nav.dataset.projectTreeView
     }
     this.syncProjectTree()
+    nav.scrollTop = scrollTop
     if (restoreFocus) {
       const selector = restoreScopeFocus ? '[data-project-tree-scope][aria-pressed="true"]' : '[aria-current="page"]'
       nav.querySelector<HTMLElement>(selector)?.focus({ preventScroll: true })
@@ -1223,6 +1241,7 @@ export class ProjectView extends ItemView {
       groupButton.onClick(() => this.openGroup(groupButton.el))
       this.groupButton = groupButton
     }
+    if (this.timelineOverview) return
     const fieldsButton = new ChipButton(parent)
       .setIcon('columns-3')
       .setLabel(t('header.fields'))
@@ -1370,7 +1389,7 @@ export class ProjectView extends ItemView {
         onOpen: (anchor) => this.openGroup(anchor)
       })
     }
-    query.push({
+    if (!this.timelineOverview) query.push({
       icon: 'columns-3',
       label: t('header.fields'),
       state: hidden ? tn('header.hiddenCount', hidden) : '',
@@ -1490,7 +1509,7 @@ export class ProjectView extends ItemView {
         }
       })
     }
-    tabs.push({
+    if (!this.timelineOverview) tabs.push({
       id: 'fields',
       label: t('header.fields'),
       render: (parent, changed) => {
@@ -1583,6 +1602,19 @@ export class ProjectView extends ItemView {
   private viewOptions(scope: ProjectScope): (ViewOption | 'zoom')[] {
     const options: (ViewOption | 'zoom')[] = []
     if (this.currentView === 'gantt') {
+      if (!this.editingTimeline) return options
+      const mode: ViewOption = {
+        id: 'timeline-mode',
+        icon: 'chart-gantt',
+        label: t('workHistory.schedule'),
+        chip: 'label',
+        run: () => {
+          this.editingTimeline = false
+          this.renderHeader()
+          this.renderCurrentView(true)
+        }
+      }
+      options.push(mode)
       options.push(
         {
           id: 'today',
@@ -1620,6 +1652,10 @@ export class ProjectView extends ItemView {
       })
     }
     return options
+  }
+
+  private get timelineOverview(): boolean {
+    return this.currentView === 'gantt' && !this.editingTimeline
   }
 
   private scrollToToday(): void {
@@ -1704,7 +1740,12 @@ export class ProjectView extends ItemView {
       this.fields.table = { ...this.fields.table, visible }
       tidyFields(this.fields, catalog)
     }
-    this.handleFieldsChange()
+    this.handleTableWidthChange()
+  }
+
+  private handleTableWidthChange(): void {
+    this.syncHeader()
+    void this.persistFilter()
   }
 
   /** Zoom is per device, so it is kept in this vault's local storage rather than in the view. */
@@ -1917,7 +1958,7 @@ export class ProjectView extends ItemView {
     showMenuBelow(menu, anchor)
   }
 
-  private renderCurrentView(): void {
+  private renderCurrentView(startWithSchedule = false): void {
     const scope = this.projectScope
     if (!scope?.primary) return
 
@@ -1955,13 +1996,26 @@ export class ProjectView extends ItemView {
           }),
           this.keyScope,
           fields,
-          () => (phone ? this.handlePhoneTableFields(fields) : this.handleFieldsChange())
+          () => (phone ? this.handlePhoneTableFields(fields) : this.handleTableWidthChange())
         )
         if (savedTableScrollTop !== null) table.setPendingScrollTop(savedTableScrollTop)
         this.subview = table
         break
       }
       case 'gantt': {
+        if (!this.editingTimeline) {
+          this.bodyEl.removeClass('pm-gantt-view', 'pm-table-view')
+          this.subview = new TimelineWorkspaceView(
+            this.bodyEl, scope, this.plugin, this.query,
+            () => {
+              this.editingTimeline = true
+              this.renderHeader()
+              this.renderCurrentView()
+            },
+            startWithSchedule
+          )
+          break
+        }
         const gantt = new GanttView(
           this.bodyEl,
           scope,

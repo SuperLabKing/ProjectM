@@ -238,6 +238,26 @@ button.pm-chip-btn--active:hover {
   z-index: 10;
   user-select: none;
 }
+.pm-table :is(th, td)[data-pm-align='left'] {
+  --pm-column-justify: flex-start;
+  text-align: left;
+}
+.pm-table :is(th, td)[data-pm-align='center'] {
+  --pm-column-justify: center;
+  text-align: center;
+}
+.pm-table :is(th, td)[data-pm-align='right'] {
+  --pm-column-justify: flex-end;
+  text-align: right;
+}
+.pm-table td[data-pm-align] > .pm-table-title-inner {
+  justify-content: var(--pm-column-justify);
+}
+.pm-table td[data-pm-align] > .pm-progress {
+  display: inline-flex;
+  width: min(100%, 120px);
+}
+
 .pm-table-th-sortable {
   cursor: pointer;
 }
@@ -245,21 +265,67 @@ button.pm-chip-btn--active:hover {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.pm-task-table {
+  table-layout: fixed;
+}
+
+.pm-task-table td {
+  overflow: hidden;
+}
+
+.pm-task-table .pm-task-title-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .pm-table-resize {
   position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 6px;
+  inset: 0 0 0 auto;
+  width: 10px;
   cursor: col-resize;
+  touch-action: none;
 }
-.pm-table-resize:hover,
-.pm-table-th-resizable.is-resizing .pm-table-resize {
+
+.pm-table-resize::after {
+  content: '';
+  position: absolute;
+  inset: 4px 0 4px auto;
+  width: 2px;
+  border-radius: 2px;
   background: var(--interactive-accent);
+  opacity: 0;
+  transition: opacity 100ms ease;
 }
-.pm-table-th-resizable.is-hiding {
-  opacity: 0.4;
+
+.pm-table-resize:hover::after,
+.pm-table-resize:focus-visible::after,
+.pm-table-th-resizable.is-resizing .pm-table-resize::after {
+  opacity: 1;
 }
+
+.pm-table-wrapper.is-column-resizing,
+.pm-table-wrapper.is-column-resizing * {
+  cursor: col-resize !important;
+  user-select: none;
+}
+
+.pm-table.pm-table-column-measure {
+  position: fixed;
+  inset: 0 auto auto 0;
+  table-layout: auto;
+  width: max-content;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.pm-table-column-measure .projectm-linked-note-row .pm-table-title-inner {
+  contain: none;
+}
+
+.pm-table-column-measure td {
+  white-space: nowrap;
+}
+
 .pm-table-th-sortable:hover {
   color: var(--text-normal);
 }

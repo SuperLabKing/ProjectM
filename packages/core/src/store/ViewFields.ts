@@ -82,10 +82,9 @@ export function hiddenFields(fields: ViewFields, mode: ViewMode, catalog: FieldC
   return availableFields(mode, catalog).filter((id) => !shown.includes(id))
 }
 
-/** A table column's width in px; the title takes what is left. */
+/** A table column's width in px. The title fills spare space until resized. */
 export function columnWidth(fields: ViewFields, id: string): number | undefined {
-  if (id === 'title') return undefined
-  return fields.table?.widths?.[id] ?? DEFAULT_COLUMN_WIDTHS[id] ?? CUSTOM_COLUMN_WIDTH
+  return fields.table?.widths?.[id] ?? (id === 'title' ? undefined : (DEFAULT_COLUMN_WIDTHS[id] ?? CUSTOM_COLUMN_WIDTH))
 }
 
 /**

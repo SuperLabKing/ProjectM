@@ -1,0 +1,104 @@
+.pm-timeline-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.pm-timeline-tabs button, .pm-timeline-edit button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  box-shadow: none;
+  border-radius: var(--radius-s);
+}
+.pm-timeline-tabs button {
+  color: var(--text-muted);
+  background: transparent;
+}
+.pm-timeline-tabs button[aria-pressed='true'] {
+  color: var(--text-accent);
+  background: color-mix(in srgb, var(--interactive-accent) 12%, var(--background-primary));
+}
+.pm-timeline-panel[hidden] { display: none; }
+.pm-timeline-edit { display: flex; justify-content: flex-end; padding: 10px 16px 0; }
+
+.pm-work-history {
+  --pm-wh-green: color-mix(in srgb, var(--color-green) 70%, var(--text-normal));
+  --pm-wh-orange: color-mix(in srgb, var(--color-orange) 70%, var(--text-normal));
+  padding: 12px 16px 22px;
+  margin-inline: auto;
+  max-width: 930px;
+  container: pm-work-history / inline-size;
+}
+.pm-wh-toolbar, .pm-wh-period, .pm-wh-filters, .pm-wh-plan-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.pm-wh-toolbar { justify-content: space-between; gap: 8px 14px; padding: 0 0 12px; }
+.pm-wh-period button { box-shadow: none; }
+.pm-wh-period button[data-wh-step] { padding-inline: 6px; }
+.pm-wh-window { font-variant-numeric: tabular-nums; font-size: var(--font-ui-small); }
+.pm-wh-plan-toggle { min-height: var(--input-height); color: var(--text-muted); }
+.pm-wh-plan-toggle input { margin: 0; }
+.pm-wh-filters { gap: 6px 12px; }
+.pm-wh-project-range { width: auto; }
+.pm-wh-log { border-top: 1px solid var(--background-modifier-border); }
+.pm-wh-day {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  padding: 9px 0 3px;
+}
+.pm-wh-day + .pm-wh-day { border-top: 1px solid var(--background-modifier-border); }
+.pm-wh-day h3 { margin: 5px 0 0; font-size: var(--font-ui-medium); }
+.pm-wh-weekday, .pm-wh-time, .pm-wh-source { color: var(--text-muted); font-size: var(--font-ui-smaller); }
+.pm-wh-today {
+  padding: 1px 4px;
+  margin-inline-start: 4px;
+  border-radius: var(--radius-s);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-accent);
+  background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
+}
+.pm-wh-log ul { margin: 0; padding: 0; list-style: none; }
+.pm-wh-log .pm-wh-items { border-inline-start: 1px solid var(--background-modifier-border); padding-inline-start: 13px; }
+.pm-wh-entry {
+  display: grid;
+  grid-template-columns: 105px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0 6px;
+  padding: 5px 0 8px;
+}
+.pm-wh-time { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pm-wh-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 7px; overflow-wrap: anywhere; }
+.pm-wh-kind {
+  padding: 1px 5px;
+  border-radius: var(--radius-s);
+  font-size: var(--font-ui-smaller);
+  color: var(--pm-wh-green);
+  background: color-mix(in srgb, var(--color-green) 11%, transparent);
+}
+.pm-wh-entry:is([data-history-kind='start'], [data-history-kind='hold'], [data-history-kind='cancellation']) .pm-wh-kind {
+  color: var(--pm-wh-orange);
+  background: color-mix(in srgb, var(--color-orange) 11%, transparent);
+}
+.pm-wh-entry[data-history-plan] .pm-wh-title { color: var(--text-muted); }
+.pm-wh-entry[data-history-plan] .pm-wh-kind {
+  color: var(--text-accent);
+  background: color-mix(in srgb, var(--interactive-accent) 11%, transparent);
+}
+.pm-wh-source { display: block; margin-top: 2px; overflow-wrap: anywhere; }
+.pm-wh-entry details { margin-top: 2px; }
+.pm-wh-entry summary { width: fit-content; color: var(--text-accent); font-size: var(--font-ui-smaller); cursor: var(--cursor); }
+.pm-wh-entry details ul { margin: 2px 0 0 4px; padding-inline-start: 9px; border-inline-start: 1px solid var(--background-modifier-border); }
+.pm-wh-entry details li { padding: 3px 0; overflow-wrap: anywhere; }
+.pm-wh-entry details .pm-wh-time { margin-inline-end: 7px; }
+.pm-wh-empty { color: var(--text-muted); padding: 16px 0; }
+@container pm-work-history (max-width: 435px) {
+  .pm-wh-day, .pm-wh-entry { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .pm-wh-day header { display: flex; align-items: baseline; gap: 6px; }
+  .pm-wh-log .pm-wh-items { margin-inline-start: 2px; padding-inline-start: 9px; }
+}

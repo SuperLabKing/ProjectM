@@ -1343,9 +1343,10 @@ class LinkedNotesTable {
       // The native renderer skips IDs outside its project index, but still includes their space in the scroll window.
       this.state.visibleRows = combined;
       if (nativeGroupLayout) {
-        this.state.renderLinkedRow = row => {
-          const linkRow = this.makeLinkedRow(row, ctx.columns, owners.get(row.task.id) ?? this.project);
-          if (!subtree) this.state.rowDrag?.attach(linkRow, row.task.id);
+        this.state.renderLinkedRow = (row, measureColumn) => {
+          const columns = measureColumn === undefined ? ctx.columns : [measureColumn];
+          const linkRow = this.makeLinkedRow(row, columns, owners.get(row.task.id) ?? this.project);
+          if (measureColumn === undefined && !subtree) this.state.rowDrag?.attach(linkRow, row.task.id);
           return linkRow;
         };
       }
