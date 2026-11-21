@@ -17,7 +17,7 @@ English | [简体中文](README.zh-CN.md)
 
 </div>
 
-ProjectMaster is a fork of [dotpm](https://github.com/dotpm/obsidian-pm). For the linked-note panel and enhanced Markdown editor, also install the [companion plugin](companion/dotpm-live-desc).
+ProjectMaster is a fork of [dotpm](https://github.com/dotpm/obsidian-pm). Linked notes, the Markdown editor and the date picker are built in. When upgrading from the separate dotpm Live Description plugin, ProjectMaster imports its settings and disables the old plugin; its files are retained.
 
 Project tools keep the plan in one app and the thinking about it in another. dotpm keeps both in the vault. A project is a note, a task is a note, and the table, the timeline and the board are three ways of looking at the same files.
 

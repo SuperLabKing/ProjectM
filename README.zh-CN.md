@@ -17,7 +17,7 @@
 
 </div>
 
-ProjectMaster 基于 [dotpm](https://github.com/dotpm/obsidian-pm)。使用关联笔记详情栏和 Markdown 增强编辑时，请同时安装[辅助插件](companion/dotpm-live-desc)。
+ProjectMaster 基于 [dotpm](https://github.com/dotpm/obsidian-pm)，内置关联笔记、Markdown 增强编辑和日期选择器。从独立的 dotpm Live Description 升级时，ProjectMaster 自动导入旧设置并停用旧插件，原文件会保留。
 
 用项目管理工具时，计划在一个软件里，围绕计划的思考却在另一个软件里。dotpm 把这两样都放进你的仓库：一个项目就是一条笔记，一个任务也是一条笔记，而表格、时间线和看板，不过是看同一批文件的三个角度。
 

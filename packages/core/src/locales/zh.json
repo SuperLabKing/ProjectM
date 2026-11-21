@@ -578,6 +578,7 @@
   "settings.ganttWeekLabel.desc": "选择周表头单元格中显示的文字。",
   "settings.ganttWeekLabel.name": "周标签",
   "settings.ganttWeekLabel.weekNumber": "周数（第15周）",
+  "settings.editingEnhancements.heading": "任务编辑增强",
   "settings.general.heading": "常规",
   "settings.integrations.heading": "集成",
   "settings.lineBorders.both": "两者",

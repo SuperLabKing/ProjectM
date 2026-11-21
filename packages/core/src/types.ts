@@ -412,6 +412,7 @@ export interface PMSettings {
   dateFormat: string
   saveTaskOnClose: boolean
   taskEditorSurface: 'modal' | 'tab' | 'panel'
+  editingEnhancements?: Record<string, unknown>
   /** Key shortcut to create or save tasks and projects. */
   editorSaveModifier: 'Shift' | 'Mod'
   /** Where a project link lands: its overview page or its tasks in the default view. */

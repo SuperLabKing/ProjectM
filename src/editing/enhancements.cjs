@@ -1,15 +1,9 @@
 "use strict";
 /*
- * dotpm Live Description
- * 一个独立、低侵入的 Obsidian 插件：为 dotpm 任务弹窗的 Description 增加
- * 实时 Markdown 渲染（Live Preview 近似），不修改 dotpm 源码、数据模型与保存逻辑。
- *
- * 设计原则：
- * 1) 原始 textarea 始终是唯一数据源，插件只读它、只渲染，不写回；
- * 2) 所有写回都通过 dotpm 自己的 input/change 流程，避免双写；
- * 3) 卸载时把 DOM 完整还原，dotpm 行为回到原样。
+ * ProjectMaster editing layer: embedded Markdown, inline task state, date picker,
+ * and linked project notes. Task description changes go through the host editor.
  */
-const { Plugin, PluginSettingTab, Setting, MarkdownRenderer, Menu, Modal, Notice, Scope, FuzzySuggestModal, setIcon, getFrontMatterInfo, parseYaml } = require("obsidian");
+const { Setting, MarkdownRenderer, Menu, Modal, Notice, Scope, FuzzySuggestModal, setIcon, getFrontMatterInfo, parseYaml } = require("obsidian");
 
 const SECTION_SEL = ".pm-modal-desc-section";
 const TEXTAREA_SEL = "textarea.pm-modal-description";
@@ -1010,7 +1004,7 @@ const DEFAULT_SETTINGS = {
   highContrastPalette: true,
   showRunningTime: false,
   runningTimeRefreshSeconds: 60,
-  mode: "preview", // preview = 源码+实时预览；live = 嵌入 Obsidian 原生 Live Preview 编辑器
+  mode: "live2", // preview = 源码+实时预览；live = 嵌入 Obsidian 原生 Live Preview 编辑器
   layout: "side", // side | below
   maxHeight: 260,
   descriptionHeight: null,
@@ -1604,8 +1598,19 @@ class LinkedNotesTable {
   }
 }
 
-module.exports = class DotpmLiveDescription extends Plugin {
-  async onload() {
+class EditingEnhancements {
+  constructor(host, storage) {
+    this.app = host.app;
+    this.register = host.register.bind(host);
+    this.registerEvent = host.registerEvent.bind(host);
+    this.registerEditorExtension = host.registerEditorExtension.bind(host);
+    this.registerMarkdownPostProcessor = host.registerMarkdownPostProcessor.bind(host);
+    this.addCommand = host.addCommand.bind(host);
+    this.loadData = storage.load;
+    this.saveData = storage.save;
+  }
+
+  async start() {
     await this.loadSettings();
     this.applyPalette();
     this.register(() => document.body.classList.remove("dotpm-high-contrast-palette"));
@@ -1624,7 +1629,6 @@ module.exports = class DotpmLiveDescription extends Plugin {
       },
     });
 
-    this.addSettingTab(new DotpmLiveSettingTab(this.app, this));
     this.inlineTimeViews = new Set();
     this.registerEditorExtension([createInlineTimeExtension(this), reconcileEditedTasks, skipHiddenTaskClock, deletePastHiddenTaskClock, taskSelectionClipboard]);
     this.scheduleCalendarRefresh();
@@ -1696,7 +1700,7 @@ module.exports = class DotpmLiveDescription extends Plugin {
     this.refresh();
   }
 
-  onunload() {
+  stop() {
     if (this.observer) this.observer.disconnect();
     document.removeEventListener("input", this.onInput, true);
     document.removeEventListener("focusin", this.onFocus, true);
@@ -2957,111 +2961,89 @@ class EmbeddedEditorBinding {
   }
 }
 
-class DotpmLiveSettingTab extends PluginSettingTab {
-  constructor(app, plugin) {
-    super(app, plugin);
-    this.plugin = plugin;
-  }
-
-  display() {
-    const { containerEl } = this;
-    containerEl.empty();
-
-    new Setting(containerEl)
-      .setName("Enable live preview in dotpm description")
-      .setDesc("关闭后立即还原 dotpm 原始编辑体验。")
-      .addToggle((t) =>
-        t.setValue(this.plugin.settings.enabled).onChange(async (v) => {
-          this.plugin.settings.enabled = v;
-          await this.plugin.saveSettings();
-          this.plugin.refresh();
+function editingDefinitions(plugin) {
+  return [
+    { name: "实时描述编辑", desc: "关闭后立即还原 ProjectMaster 原始编辑体验。", render: (setting) => {
+      setting.addToggle((t) =>
+        t.setValue(plugin.settings.enabled).onChange(async (v) => {
+          plugin.settings.enabled = v;
+          await plugin.saveSettings();
+          plugin.refresh();
         })
       );
-
-    new Setting(containerEl)
-      .setName("高对比任务配色")
-      .setDesc("为普通笔记和 dotpm 任务描述中的复选框及时间标记启用内置配色。")
-      .addToggle(toggle => toggle.setValue(this.plugin.settings.highContrastPalette).onChange(async value => {
-        this.plugin.settings.highContrastPalette = value;
-        this.plugin.applyPalette();
-        await this.plugin.saveSettings();
+    } },
+    { name: "高对比任务配色", desc: "为普通笔记和 ProjectMaster 任务描述中的复选框及时间标记启用内置配色。", render: (setting) => {
+      setting.addToggle(toggle => toggle.setValue(plugin.settings.highContrastPalette).onChange(async value => {
+        plugin.settings.highContrastPalette = value;
+        plugin.applyPalette();
+        await plugin.saveSettings();
       }));
-
-    new Setting(containerEl)
-      .setName("显示进行中耗时")
-      .setDesc("默认关闭。任务仍会累计耗时，搁置、完成和取消时显示结果。")
-      .addToggle(toggle => toggle.setValue(this.plugin.settings.showRunningTime)
-        .onChange(value => this.plugin.setRunningTimeOptions({ showRunningTime: value })));
-
-    new Setting(containerEl)
-      .setName("实时耗时刷新频率")
-      .setDesc("开启“显示进行中耗时”时生效。耗时显示仍按分钟四舍五入。")
-      .addDropdown(dropdown => dropdown.addOptions(RUNNING_TIME_FREQUENCIES)
-        .setValue(String(this.plugin.settings.runningTimeRefreshSeconds))
-        .onChange(value => this.plugin.setRunningTimeOptions({ runningTimeRefreshSeconds: Number(value) })));
-
-    new Setting(containerEl)
-      .setName("Mode")
-      .setDesc("preview：源码 + 实时渲染预览（稳定）；live：嵌入 Obsidian 原生 Live Preview 编辑器（实验性）。")
-      .addDropdown((d) =>
+    } },
+    { name: "显示进行中耗时", desc: "默认关闭。任务仍会累计耗时，搁置、完成和取消时显示结果。", render: (setting) => {
+      setting.addToggle(toggle => toggle.setValue(plugin.settings.showRunningTime)
+        .onChange(value => plugin.setRunningTimeOptions({ showRunningTime: value })));
+    } },
+    { name: "实时耗时刷新频率", desc: "开启“显示进行中耗时”时生效。耗时显示仍按分钟四舍五入。", render: (setting) => {
+      setting.addDropdown(dropdown => dropdown.addOptions(RUNNING_TIME_FREQUENCIES)
+        .setValue(String(plugin.settings.runningTimeRefreshSeconds))
+        .onChange(value => plugin.setRunningTimeOptions({ runningTimeRefreshSeconds: Number(value) })));
+    } },
+    { name: "描述编辑模式", desc: "preview：源码 + 实时渲染预览（稳定）；live：嵌入 Obsidian 原生 Live Preview 编辑器（实验性）。", render: (setting) => {
+      setting.addDropdown((d) =>
         d
           .addOption("preview", "preview 源码 + 实时预览")
           .addOption("live", "live 嵌入 Live Preview 编辑器（v0.2 借 scratch 文件）")
           .addOption("live2", "live2 原生嵌入编辑器（v0.4）")
-          .setValue(this.plugin.settings.mode || "preview")
+          .setValue(plugin.settings.mode || "preview")
           .onChange(async (v) => {
-            this.plugin.settings.mode = v;
-            await this.plugin.saveSettings();
-            this.plugin.unmountAll();
-            this.plugin.refresh();
+            plugin.settings.mode = v;
+            await plugin.saveSettings();
+            plugin.unmountAll();
+            plugin.refresh();
           })
       );
-
-    new Setting(containerEl)
-      .setName("Layout")
-      .setDesc("源码与预览的相对位置。")
-      .addDropdown((d) =>
+    } },
+    { name: "预览布局", desc: "源码与预览的相对位置。", render: (setting) => {
+      setting.addDropdown((d) =>
         d
           .addOption("side", "左右分栏")
           .addOption("below", "上下排列")
-          .setValue(this.plugin.settings.layout)
+          .setValue(plugin.settings.layout)
           .onChange(async (v) => {
-            this.plugin.settings.layout = v;
-            await this.plugin.saveSettings();
-            this.plugin.unmountAll();
-            this.plugin.refresh();
+            plugin.settings.layout = v;
+            await plugin.saveSettings();
+            plugin.unmountAll();
+            plugin.refresh();
           })
       );
-
-    new Setting(containerEl)
-      .setName("Max preview height")
-      .setDesc("预览区最大高度（像素）。")
-      .addSlider((s) =>
+    } },
+    { name: "预览最大高度", desc: "预览区最大高度（像素）。", render: (setting) => {
+      setting.addSlider((s) =>
         s
           .setLimits(120, 600, 20)
-          .setValue(this.plugin.settings.maxHeight)
+          .setValue(plugin.settings.maxHeight)
           .setDynamicTooltip()
           .onChange(async (v) => {
-            this.plugin.settings.maxHeight = v;
-            await this.plugin.saveSettings();
+            plugin.settings.maxHeight = v;
+            await plugin.saveSettings();
             document.querySelectorAll(".dotpm-ld-pane, .dotpm-live-editor-host").forEach((p) => (p.style.maxHeight = v + "px"));
           })
       );
-
-    new Setting(containerEl)
-      .setName("Show badge")
-      .setDesc("在预览区顶部显示 Live Preview 标记。")
-      .addToggle((t) =>
-        t.setValue(this.plugin.settings.showBadge).onChange(async (v) => {
-          this.plugin.settings.showBadge = v;
-          await this.plugin.saveSettings();
-          this.plugin.unmountAll();
-          this.plugin.refresh();
+    } },
+    { name: "显示预览标记", desc: "在预览区顶部显示 Live Preview 标记。", render: (setting) => {
+      setting.addToggle((t) =>
+        t.setValue(plugin.settings.showBadge).onChange(async (v) => {
+          plugin.settings.showBadge = v;
+          await plugin.saveSettings();
+          plugin.unmountAll();
+          plugin.refresh();
         })
       );
-  }
+    } }
+  ];
 }
 
+module.exports = { EditingEnhancements, editingDefinitions };
 
 // Existing date picker, bundled with plugin-owned startup and cleanup.
 // QuickAdd User Script（Run on startup）

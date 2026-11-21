@@ -17,6 +17,7 @@ export default defineConfig({
   platform: 'node',
   dts: false,
   minify: prod,
+  banner: () => '/*!\n' + readFileSync('src/editing/THIRD-PARTY-LICENSE.txt', 'utf8').trimEnd() + '\n*/',
   sourcemap: prod ? false : 'inline',
   clean: false,
   hash: false,

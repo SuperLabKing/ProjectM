@@ -39,6 +39,8 @@ import { glassValue, type GlassField } from './ui/agendaGlass'
 export type { PMSettings }
 export { DEFAULT_SETTINGS }
 
+import { editingDefinitions } from './editing/enhancements.cjs'
+
 export class PMSettingTab extends PluginSettingTab {
   plugin: PMPlugin
   /** A folder name is typed one character at a time; each sweep costs the whole vault. */
@@ -333,6 +335,11 @@ export class PMSettingTab extends PluginSettingTab {
           }
         ]
       },
+      ...(this.plugin.editingEnhancements ? [{
+        type: 'group' as const,
+        heading: t('settings.editingEnhancements.heading'),
+        items: editingDefinitions(this.plugin.editingEnhancements)
+      }] : []),
       this.localApiGroup(),
       {
         type: 'group',

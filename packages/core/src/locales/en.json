@@ -619,6 +619,7 @@
   "settings.ganttWeekLabel.desc": "Choose the text shown in weekly header cells.",
   "settings.ganttWeekLabel.name": "Week label",
   "settings.ganttWeekLabel.weekNumber": "Week number (w15)",
+  "settings.editingEnhancements.heading": "Task editing enhancements",
   "settings.general.heading": "General",
   "settings.integrations.heading": "Integrations",
   "settings.lineBorders.both": "Both",

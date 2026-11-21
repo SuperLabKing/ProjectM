@@ -67,6 +67,8 @@ import { migrateBoardCardConfig, migrateProjects, migrateProjectLayout, migrateT
 import { LocalApi } from './api/LocalApi'
 import { exportViewAsHtml } from './export/exportView'
 import { generateToken, LocalApiServer } from './api/LocalApiServer'
+import { EditingEnhancements } from './editing/enhancements.cjs'
+import { migrateEditingEnhancements } from './editing/migrateEditingEnhancements'
 
 export default class PMPlugin extends Plugin {
   settings: PMSettings = { ...DEFAULT_SETTINGS }
@@ -79,6 +81,7 @@ export default class PMPlugin extends Plugin {
   idRepair!: IdRepair
   router!: PMViewRouter
   localApi!: LocalApiServer
+  editingEnhancements?: EditingEnhancements
   /** Leaves sent to the markdown editor for a note, which the swap leaves alone while they show it. */
   private markdownEscapes = new WeakMap<WorkspaceLeaf, string>()
   private viewRefreshScheduled = false
@@ -358,6 +361,23 @@ export default class PMPlugin extends Plugin {
     })
 
     this.addSettingTab(new PMSettingTab(this.app, this))
+    let stopped = false
+    this.register(() => { stopped = true })
+    this.app.workspace.onLayoutReady(safeAsync(async () => {
+      if (stopped) return
+      await migrateEditingEnhancements(this)
+      if (stopped) return
+      const editing = new EditingEnhancements(this, {
+        load: () => this.settings.editingEnhancements,
+        save: async (settings) => {
+          this.settings.editingEnhancements = settings
+          await this.saveSettings()
+        }
+      })
+      this.editingEnhancements = editing
+      this.register(() => editing.stop())
+      await editing.start()
+    }))
     this.notifier.start()
     this.timedReminders.start()
     this.autoArchiver.start()
