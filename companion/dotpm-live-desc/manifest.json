@@ -1,0 +1,9 @@
+{
+  "id": "dotpm-live-desc",
+  "name": "dotpm Live Description",
+  "version": "0.5.1",
+  "minAppVersion": "1.13.0",
+  "description": "在 dotpm 任务描述旁提供实时 Markdown 渲染与编辑增强（不修改 dotpm）。",
+  "author": "Luo",
+  "isDesktopOnly": false
+}
