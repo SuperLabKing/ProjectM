@@ -1,0 +1,1055 @@
+.dotpm-ld-wrap{display:flex;gap:10px;align-items:stretch;width:100%;}
+.dotpm-ld-wrap.is-side .dotpm-ld-source{flex:1 1 50%;min-width:0;}
+.dotpm-ld-wrap.is-side .dotpm-ld-pane{flex:1 1 50%;min-width:0;}
+.dotpm-ld-wrap.is-below{flex-direction:column;}
+.dotpm-ld-pane{
+  border:1px solid var(--background-modifier-border);
+  border-radius:8px;padding:8px 10px;background:var(--background-secondary);
+  max-height:260px;overflow:auto;font-size:13px;line-height:1.55;
+  overflow-wrap:anywhere;
+}
+.dotpm-ld-pane.is-empty{display:none;}
+.dotpm-ld-pane .markdown-rendered>*:first-child{margin-top:0;}
+.dotpm-ld-pane .markdown-rendered>*:last-child{margin-bottom:0;}
+.dotpm-ld-badge{
+  font-size:10px;color:var(--text-faint);letter-spacing:.4px;
+  text-transform:uppercase;margin-bottom:2px;user-select:none;
+}
+
+/* ── Live 模式：嵌入式编辑器外观 ─────────────────────────────── */
+.dotpm-live-editor-host{
+  border:1px solid var(--background-modifier-border);
+  border-radius:8px;
+  background:var(--background-primary);
+  padding:4px 10px 2px;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  transition:border-color .15s ease, box-shadow .15s ease;
+}
+.dotpm-live-editor-host:focus-within{
+  border-color:var(--interactive-accent);
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--interactive-accent) 16%,transparent);
+}
+.dotpm-live-editor-host .cm-editor{flex:1 1 auto;min-height:0;height:auto;max-height:100%;}
+.dotpm-live-editor-host .cm-editor.cm-focused{outline:none;}
+.dotpm-live-editor-host .cm-editor,
+.dotpm-live-editor-host .cm-scroller,
+.dotpm-live-editor-host .cm-content{background:transparent;}
+.dotpm-live-editor-host .cm-scroller{overflow-y:auto;padding-right:2px;}
+.dotpm-live-editor-host:not(.dotpm-live-native) .cm-content{padding:6px 4px 28px 8px !important;font-size:14px;line-height:1.7;}
+.dotpm-live-editor-host .list-bullet{/* 保持 Obsidian 默认负缩进 */}
+/* 标题在弹窗里不要过大 */
+.dotpm-live-editor-host:not(.dotpm-live-native) .HyperMD-header .cm-header-1{font-size:1.5em;}
+.dotpm-live-editor-host:not(.dotpm-live-native) .HyperMD-header .cm-header-2{font-size:1.3em;}
+.dotpm-live-editor-host:not(.dotpm-live-native) .HyperMD-header .cm-header-3{font-size:1.15em;}
+/* 隐藏原 textarea 时不占位 */
+textarea.dotpm-live-hidden-source{display:none !important;}
+/* 隐藏嵌入编辑器里不必要的部分：笔记标题 / 属性面板 / frontmatter */
+.dotpm-live-editor-host .inline-title{display:none !important;}
+.dotpm-live-editor-host .metadata-container{display:none !important;}
+.dotpm-live-editor-host .metadata-properties{display:none !important;}
+.dotpm-live-editor-host .frontmatter{display:none !important;}
+.dotpm-live-editor-host .cm-hmd-frontmatter{display:none !important;}
+.dotpm-live-editor-host .cm-line:has(.cm-hmd-frontmatter){display:none !important;}
+
+/* ══════════════════════════════════════════════════════════
+ * dotpm 任务弹窗：对齐 Obsidian 原生排版与主题
+ * 只覆盖视觉，不改结构与行为
+ * ══════════════════════════════════════════════════════════ */
+
+.pm-modal--task{
+  --pm-gap: 8px;
+  font-family: var(--font-interface);
+  font-size: var(--font-ui-medium, 15px);
+  color: var(--text-normal);
+}
+
+/* 顶部面包屑 */
+.pm-modal--task .pm-te-header{
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.pm-modal--task .pm-te-crumb{ font-size: 12px; color: var(--text-muted); gap: 6px; }
+.pm-modal--task .pm-te-crumb-icon{ color: var(--text-faint); }
+
+/* 正文容器 */
+.pm-modal--task .pm-te-body{ padding: 20px 24px 16px; }
+
+/* 标题 */
+.pm-modal--task .pm-te-title{
+  font-family: var(--font-interface);
+  font-size: 1.55em;
+  font-weight: var(--font-semibold, 600);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: var(--text-normal);
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+.pm-modal--task .pm-te-title::placeholder{ color: var(--text-faint); }
+
+/* 属性网格与行 */
+.pm-modal--task .pm-prop-grid{
+  column-gap: 20px;
+  row-gap: 2px;
+  margin-bottom: 14px;
+}
+.pm-modal--task .pm-prop-row{
+  font-size: 13.5px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  transition: background-color .12s ease;
+}
+.pm-modal--task .pm-prop-row:hover{ background: var(--background-modifier-hover); }
+
+.pm-modal--task .pm-prop-label{
+  font-size: 13px;
+  font-weight: var(--font-medium, 500);
+  color: var(--text-muted);
+  padding-top: 4px;
+}
+.pm-modal--task .pm-prop-label-icon{ color: var(--text-faint); }
+.pm-modal--task .pm-prop-value{ font-size: 13.5px; color: var(--text-normal); }
+.pm-modal--task .pm-prop-inline{ font-size: 13.5px; }
+.pm-modal--task .pm-prop-inline--empty{ color: var(--text-faint); }
+
+/* 统一输入控件 */
+.pm-modal--task .pm-prop-value input,
+.pm-modal--task .pm-prop-value select,
+.pm-modal--task .pm-prop-value textarea,
+.pm-modal--task input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),
+.pm-modal--task input[type=date],
+.pm-modal--task input[type=number],
+.pm-modal--task select,
+.pm-modal--task textarea{
+  font-family: var(--font-interface);
+  font-size: 13px;
+  line-height: 1.5;
+  height: 30px;
+  padding: 0 8px;
+  color: var(--text-normal);
+  background: var(--background-modifier-form-field, var(--background-primary));
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  box-shadow: none;
+  transition: border-color .12s ease, box-shadow .12s ease;
+}
+.pm-modal--task textarea.pm-modal-description{
+  height: auto;
+  min-height: 88px;
+  padding: 8px 10px;
+  line-height: 1.6;
+}
+.pm-modal--task input:focus,
+.pm-modal--task select:focus,
+.pm-modal--task textarea:focus{
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 2px var(--background-modifier-border-focus, transparent);
+  outline: none;
+}
+
+/* 按钮 */
+.pm-modal--task button{
+  font-family: var(--font-interface);
+  font-size: 13px;
+  font-weight: var(--font-medium, 500);
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--interactive-normal, var(--background-secondary));
+  color: var(--text-normal);
+  box-shadow: none;
+  transition: background-color .12s ease, border-color .12s ease;
+}
+.pm-modal--task button:hover{
+  background: var(--interactive-hover, var(--background-modifier-hover));
+  border-color: var(--background-modifier-border-hover, var(--background-modifier-border));
+}
+.pm-modal--task button.mod-cta{
+  background: var(--interactive-accent);
+  border-color: transparent;
+  color: var(--text-on-accent);
+}
+.pm-modal--task button.mod-cta:hover{ background: var(--interactive-accent-hover); }
+.pm-modal--task button.clickable-icon{ height: 26px; padding: 0 6px; background: transparent; border: none; }
+
+/* 分区标题 */
+.pm-modal--task .pm-modal-section-title{
+  font-family: var(--font-interface);
+  font-size: 12px;
+  font-weight: var(--font-semibold, 600);
+  letter-spacing: .03em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+/* 分区之间用细分割线，贴近 Obsidian 设置面板 */
+.pm-modal--task .pm-modal-section{
+  padding-top: 14px;
+  margin-top: 14px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+.pm-modal--task .pm-modal-section:first-of-type{ border-top: none; margin-top: 4px; }
+
+/* 自定义字段 / 空值提示 */
+.pm-modal--task .pm-prop-add-label{ font-size: 13px; color: var(--text-faint); }
+
+/* 列表层级：显式左移，避免内嵌容器里层级不可见 */
+.dotpm-live-editor-host:not(.dotpm-live-native) .cm-line.HyperMD-list-line-2{margin-inline-start:1.1em;}
+.dotpm-live-editor-host:not(.dotpm-live-native) .cm-line.HyperMD-list-line-3{margin-inline-start:2.2em;}
+.dotpm-live-editor-host:not(.dotpm-live-native) .cm-line.HyperMD-list-line-4{margin-inline-start:3.3em;}
+.dotpm-live-editor-host:not(.dotpm-live-native) .cm-line.HyperMD-list-line-5{margin-inline-start:4.4em;}
+.dotpm-live-editor-host:not(.dotpm-live-native) .cm-line.HyperMD-list-line-6{margin-inline-start:5.5em;}
+
+/* Keep dotpm's textarea and preview in place for its original save and fallback. */
+.dotpm-live-native-mounted .pm-modal-description,
+.dotpm-live-native-mounted .pm-modal-desc-preview{display:none !important;}
+.dotpm-live-native{
+  min-height:180px;
+  font-family:var(--font-text);
+  font-size:var(--font-text-size);
+  line-height:var(--line-height-normal);
+}
+.dotpm-live-native .markdown-source-view{display:flex;flex:1 1 auto;min-height:0;}
+.dotpm-live-native .cm-content{padding-bottom:12px !important;}
+
+/* Keep the list marker with its text and preserve the hanging indent when it wraps. */
+.dotpm-live-native .dotpm-tabbed-list.HyperMD-list-line:not(.HyperMD-task-line):has(> .cm-hmd-list-indent):has(> .cm-formatting-list-ul){
+  --dotpm-list-hanging-indent:calc(var(--list-indent, 2.25em) * var(--dotpm-list-tabs) + var(--list-bullet-end-padding, 1.3rem));
+  padding-inline-start:var(--dotpm-list-hanging-indent) !important;
+  text-indent:calc(-1 * var(--dotpm-list-hanging-indent)) !important;
+  white-space:pre-wrap;
+  text-wrap:balance;
+}
+.dotpm-live-native.dotpm-live-native-resized{max-height:max(180px, 78dvh) !important;}
+.dotpm-live-resize-handle{
+  display:grid;
+  place-items:center;
+  flex:0 0 12px;
+  cursor:ns-resize;
+  touch-action:none;
+  user-select:none;
+}
+.dotpm-live-resize-handle::after{
+  content:"";
+  width:32px;
+  height:3px;
+  border-radius:2px;
+  background:var(--background-modifier-border-hover);
+}
+.dotpm-live-resize-handle:is(:hover, :focus-visible, .is-dragging)::after{
+  background:var(--interactive-accent);
+}
+.pm-modal--task.dotpm-live-width-resized:has(> .dotpm-live-width-handle){
+  width:var(--dotpm-live-modal-width);
+  min-width:min(460px, calc(100dvw - 32px));
+  max-width:calc(100dvw - 32px) !important;
+}
+.dotpm-live-width-handle{
+  position:absolute;
+  top:50%;
+  right:14px;
+  z-index:1;
+  transform:translateY(-50%);
+  width:14px;
+  height:56px;
+  cursor:ew-resize;
+}
+.dotpm-live-width-handle::after{
+  width:3px;
+  height:32px;
+}
+.dotpm-task-progress{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  margin-inline-start:8px;
+  font-size:.75em;
+  font-variant-numeric:tabular-nums;
+  color:var(--text-muted);
+  white-space:nowrap;
+  user-select:none;
+  vertical-align:middle;
+}
+.dotpm-derived-task-parent input.task-list-item-checkbox{cursor:not-allowed !important;}
+button.dotpm-parent-task-menu{
+  width:20px;
+  height:18px;
+  padding:0;
+  border:none;
+  background:transparent;
+  box-shadow:none;
+  color:var(--text-muted);
+  font-size:14px;
+  line-height:1;
+  cursor:pointer;
+}
+button.dotpm-parent-task-menu:is(:hover,:focus-visible){
+  background:var(--background-modifier-hover);
+  color:var(--text-normal);
+}
+.dotpm-task-progress-summary{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+}
+.dotpm-task-progress-summary::before{content:"[";}
+.dotpm-task-progress-summary::after{content:"]";}
+.dotpm-task-progress-track{
+  width:36px;
+  height:4px;
+  border-radius:2px;
+  background:linear-gradient(to right, var(--interactive-accent) var(--dotpm-task-progress),
+    var(--background-modifier-border) var(--dotpm-task-progress));
+}
+
+/* ══ 时间标记：计划 / 开始 / 完成 ══ */
+:root {
+  --dotpm-time-hold-color: #f3aeb6;
+  --dotpm-time-cancel-color: #d4d5dc;
+}
+.pm-time{
+  font-size:.85em;
+  font-weight:var(--font-bold, 700);
+  padding:1px 6px;
+  border-radius:4px;
+  white-space:nowrap;
+  font-style:italic;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.01em;
+  line-height:1.5;
+}
+.pm-time--plan{
+  background:color-mix(in srgb,var(--interactive-accent) 16%,transparent);
+  color:var(--text-muted);
+}
+.pm-time--start{
+  background:color-mix(in srgb,#f2a93b 20%,transparent);
+  color:var(--text-normal);
+}
+.pm-time--done{
+  background:color-mix(in srgb,#3fa96b 20%,transparent);
+  color:var(--text-normal);
+}
+
+.pm-time--hold {
+  background: var(--dotpm-time-hold-color);
+  color: #353440;
+}
+.pm-time--cancel {
+  background: var(--dotpm-time-cancel-color);
+  color: #353440;
+}
+
+/* 状态标签前缀（完成/搁置/取消）与时间之间留一点空隙 */
+.pm-time .pm-time__label{margin-right:4px;opacity:.85;font-style:italic;}
+
+/* Inline status controls in Live Preview and the dotpm description preview. */
+:is(.dotpm-live-native .HyperMD-task-line, .pm-te-surface .pm-modal-desc-preview li.task-list-item):has(> .pm-time--start, > p > .pm-time--start, > .cm-html-embed > .pm-time--start), .dotpm-time-row--start {
+  --dotpm-checkbox-color: #f5ad42;
+  --dotpm-checkbox-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M5%204v8m6-8v8%22%20fill%3D%22none%22%20stroke%3D%22%23353440%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E");
+}
+:is(.dotpm-live-native .HyperMD-task-line, .pm-te-surface .pm-modal-desc-preview li.task-list-item):has(> .pm-time--done, > p > .pm-time--done, > .cm-html-embed > .pm-time--done), .dotpm-time-row--done {
+  --dotpm-checkbox-color: #a9e2b7;
+  --dotpm-checkbox-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22m4%208%203%203%205-6%22%20fill%3D%22none%22%20stroke%3D%22%23353440%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E");
+}
+:is(.dotpm-live-native .HyperMD-task-line, .pm-te-surface .pm-modal-desc-preview li.task-list-item):has(> .pm-time--hold, > p > .pm-time--hold, > .cm-html-embed > .pm-time--hold), .dotpm-time-row--hold {
+  --dotpm-checkbox-color: var(--dotpm-time-hold-color);
+  --dotpm-checkbox-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M6%203l7%205-7%205z%22%20fill%3D%22%23353440%22%2F%3E%3C%2Fsvg%3E");
+}
+:is(.dotpm-live-native .HyperMD-task-line, .pm-te-surface .pm-modal-desc-preview li.task-list-item):has(> .pm-time--cancel, > p > .pm-time--cancel, > .cm-html-embed > .pm-time--cancel), .dotpm-time-row--cancel {
+  --dotpm-checkbox-color: var(--dotpm-time-cancel-color);
+  --dotpm-checkbox-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22m5%205%206%206m0-6-6%206%22%20fill%3D%22none%22%20stroke%3D%22%23353440%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E");
+}
+
+:is(.dotpm-live-native .HyperMD-task-line, .pm-te-surface .pm-modal-desc-preview li.task-list-item):has(> .pm-time:not(.pm-time--plan), > p > .pm-time:not(.pm-time--plan), > .cm-html-embed > .pm-time:not(.pm-time--plan)), .dotpm-time-row {
+  & > input.task-list-item-checkbox,
+  & > label.task-list-label > input.task-list-item-checkbox,
+  & > p > input.task-list-item-checkbox {
+    background: var(--dotpm-checkbox-color) var(--dotpm-checkbox-icon) center / 100% 100% no-repeat;
+    border-color: var(--dotpm-checkbox-color);
+
+    &::after { display: none; }
+  }
+}
+
+.dotpm-live-native .HyperMD-task-line[data-task=" "] input.task-list-item-checkbox,
+.pm-te-surface .pm-modal-desc-preview li.task-list-item[data-task=" "] > input.task-list-item-checkbox,
+.pm-te-surface .pm-modal-desc-preview li.task-list-item[data-task=" "] > p > input.task-list-item-checkbox {
+  background: transparent;
+  border-color: var(--interactive-accent);
+}
+
+/* Display the same labels for older saved markers without editing their Markdown. */
+.pm-time--plan > .pm-time__label:not(.pm-time__label--plan) { display: none; }
+span.pm-time--plan:not(.pm-time--markdown):not(:has(> .pm-time__label--plan))::before { content: "计划 "; font-style: italic; }
+span.pm-time--plan:not(.pm-time--markdown):not(:has(> .pm-time__label))::before { content: "计划 @"; }
+span.pm-time--start:not(.pm-time--markdown):not(:has(> .pm-time__label))::before { content: "开始 @"; font-style: italic; }
+.pm-time:is(.pm-time--done, .pm-time--hold, .pm-time--cancel):not(:has(> .pm-time__value)) > .pm-time__label::after {
+  content: " @";
+}
+
+/* Task status icons already indicate state. Keep task text readable. */
+:is(.HyperMD-task-line, li.task-list-item):is([data-task="x" i], [data-task="/"], [data-task="-"], [data-task="c" i], [data-task="~"]) {
+  text-decoration-line: none !important;
+}
+
+/* Optional built-in task palette. */
+body.dotpm-high-contrast-palette {
+  /* Obsidian task states and time capsules — high contrast
+     DataviewJS and custom time trackers can emit:
+     .task-time-badge[data-time-state="plan|start|done|hold|cancel"].
+     CSS can style existing elements; plain timestamps need a renderer to create a badge. */
+
+  /* Standard task rows and checkboxes with data-task. */
+  :is(.HyperMD-task-line, li.task-list-item):is([data-task=" "]),
+  input.task-list-item-checkbox:is([data-task=" "]) {
+    --task-hc-fill: transparent;
+    --task-hc-border: var(--interactive-accent, #9873F7);
+    --task-hc-icon: none;
+  }
+
+  :is(.HyperMD-task-line, li.task-list-item):is([data-task="/"]),
+  input.task-list-item-checkbox:is([data-task="/"]) {
+    --task-hc-fill: #E68A00;
+    --task-hc-border: #E68A00;
+    --task-hc-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M5%204v8m6-8v8%22%20fill%3D%22none%22%20stroke%3D%22%23FFFFFF%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E");
+  }
+
+  :is(.HyperMD-task-line, li.task-list-item):is([data-task="x"], [data-task="X"]),
+  input.task-list-item-checkbox:is([data-task="x"], [data-task="X"]) {
+    --task-hc-fill: #2E9E66;
+    --task-hc-border: #2E9E66;
+    --task-hc-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22m4%208%203%203%205-6%22%20fill%3D%22none%22%20stroke%3D%22%23FFFFFF%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E");
+  }
+
+  :is(.HyperMD-task-line, li.task-list-item):is([data-task="-"]),
+  input.task-list-item-checkbox:is([data-task="-"]) {
+    --task-hc-fill: #E05355;
+    --task-hc-border: #E05355;
+    --task-hc-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M6%203l7%205-7%205z%22%20fill%3D%22%23FFFFFF%22%2F%3E%3C%2Fsvg%3E");
+  }
+
+  :is(.HyperMD-task-line, li.task-list-item):is([data-task="c"], [data-task="C"], [data-task="~"]),
+  input.task-list-item-checkbox:is([data-task="c"], [data-task="C"], [data-task="~"]) {
+    --task-hc-fill: #7E869B;
+    --task-hc-border: #7E869B;
+    --task-hc-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22m5%205%206%206m0-6-6%206%22%20fill%3D%22none%22%20stroke%3D%22%23FFFFFF%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E");
+  }
+
+  /* dotpm stores its state in the inline time marker. Give it precedence over [x]. */
+  :is(.dotpm-time-row--start, :is(.HyperMD-task-line, li.task-list-item):has(> .pm-time--start, > p > .pm-time--start, > .cm-html-embed > .pm-time--start)) {
+    &,
+    & > input.task-list-item-checkbox,
+    & > label.task-list-label > input.task-list-item-checkbox,
+    & > p > input.task-list-item-checkbox,
+    & > p > label.task-list-label > input.task-list-item-checkbox {
+      --task-hc-fill: #E68A00;
+      --task-hc-border: #E68A00;
+      --task-hc-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M5%204v8m6-8v8%22%20fill%3D%22none%22%20stroke%3D%22%23FFFFFF%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E");
+    }
+  }
+
+  :is(.dotpm-time-row--done, :is(.HyperMD-task-line, li.task-list-item):has(> .pm-time--done, > p > .pm-time--done, > .cm-html-embed > .pm-time--done)) {
+    &,
+    & > input.task-list-item-checkbox,
+    & > label.task-list-label > input.task-list-item-checkbox,
+    & > p > input.task-list-item-checkbox,
+    & > p > label.task-list-label > input.task-list-item-checkbox {
+      --task-hc-fill: #2E9E66;
+      --task-hc-border: #2E9E66;
+      --task-hc-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22m4%208%203%203%205-6%22%20fill%3D%22none%22%20stroke%3D%22%23FFFFFF%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E");
+    }
+  }
+
+  :is(.dotpm-time-row--hold, :is(.HyperMD-task-line, li.task-list-item):has(> .pm-time--hold, > p > .pm-time--hold, > .cm-html-embed > .pm-time--hold)) {
+    &,
+    & > input.task-list-item-checkbox,
+    & > label.task-list-label > input.task-list-item-checkbox,
+    & > p > input.task-list-item-checkbox,
+    & > p > label.task-list-label > input.task-list-item-checkbox {
+      --task-hc-fill: #E05355;
+      --task-hc-border: #E05355;
+      --task-hc-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M6%203l7%205-7%205z%22%20fill%3D%22%23FFFFFF%22%2F%3E%3C%2Fsvg%3E");
+    }
+  }
+
+  :is(.dotpm-time-row--cancel, :is(.HyperMD-task-line, li.task-list-item):has(> .pm-time--cancel, > p > .pm-time--cancel, > .cm-html-embed > .pm-time--cancel)) {
+    &,
+    & > input.task-list-item-checkbox,
+    & > label.task-list-label > input.task-list-item-checkbox,
+    & > p > input.task-list-item-checkbox,
+    & > p > label.task-list-label > input.task-list-item-checkbox {
+      --task-hc-fill: #7E869B;
+      --task-hc-border: #7E869B;
+      --task-hc-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22m5%205%206%206m0-6-6%206%22%20fill%3D%22none%22%20stroke%3D%22%23FFFFFF%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E");
+    }
+  }
+
+  input.task-list-item-checkbox:is([data-task=" "], [data-task="/"], [data-task="x"], [data-task="X"], [data-task="-"], [data-task="c"], [data-task="C"], [data-task="~"]),
+  :is(:is(.HyperMD-task-line, li.task-list-item):is([data-task=" "], [data-task="/"], [data-task="x"], [data-task="X"], [data-task="-"], [data-task="c"], [data-task="C"], [data-task="~"]), .dotpm-time-row, :is(.HyperMD-task-line, li.task-list-item):has(> .pm-time--start, > p > .pm-time--start, > .cm-html-embed > .pm-time--start),
+      :is(.HyperMD-task-line, li.task-list-item):has(> .pm-time--done, > p > .pm-time--done, > .cm-html-embed > .pm-time--done),
+      :is(.HyperMD-task-line, li.task-list-item):has(> .pm-time--hold, > p > .pm-time--hold, > .cm-html-embed > .pm-time--hold),
+      :is(.HyperMD-task-line, li.task-list-item):has(> .pm-time--cancel, > p > .pm-time--cancel, > .cm-html-embed > .pm-time--cancel)) > input.task-list-item-checkbox,
+  :is(:is(.HyperMD-task-line, li.task-list-item):is([data-task=" "], [data-task="/"], [data-task="x"], [data-task="X"], [data-task="-"], [data-task="c"], [data-task="C"], [data-task="~"]), .dotpm-time-row, :is(.HyperMD-task-line, li.task-list-item):has(> .pm-time--start, > p > .pm-time--start, > .cm-html-embed > .pm-time--start),
+      :is(.HyperMD-task-line, li.task-list-item):has(> .pm-time--done, > p > .pm-time--done, > .cm-html-embed > .pm-time--done),
+      :is(.HyperMD-task-line, li.task-list-item):has(> .pm-time--hold, > p > .pm-time--hold, > .cm-html-embed > .pm-time--hold),
+      :is(.HyperMD-task-line, li.task-list-item):has(> .pm-time--cancel, > p > .pm-time--cancel, > .cm-html-embed > .pm-time--cancel)) > label.task-list-label > input.task-list-item-checkbox,
+  :is(:is(.HyperMD-task-line, li.task-list-item):is([data-task=" "], [data-task="/"], [data-task="x"], [data-task="X"], [data-task="-"], [data-task="c"], [data-task="C"], [data-task="~"]), .dotpm-time-row, :is(.HyperMD-task-line, li.task-list-item):has(> .pm-time--start, > p > .pm-time--start, > .cm-html-embed > .pm-time--start),
+      :is(.HyperMD-task-line, li.task-list-item):has(> .pm-time--done, > p > .pm-time--done, > .cm-html-embed > .pm-time--done),
+      :is(.HyperMD-task-line, li.task-list-item):has(> .pm-time--hold, > p > .pm-time--hold, > .cm-html-embed > .pm-time--hold),
+      :is(.HyperMD-task-line, li.task-list-item):has(> .pm-time--cancel, > p > .pm-time--cancel, > .cm-html-embed > .pm-time--cancel)) > p > input.task-list-item-checkbox,
+  :is(:is(.HyperMD-task-line, li.task-list-item):is([data-task=" "], [data-task="/"], [data-task="x"], [data-task="X"], [data-task="-"], [data-task="c"], [data-task="C"], [data-task="~"]), .dotpm-time-row, :is(.HyperMD-task-line, li.task-list-item):has(> .pm-time--start, > p > .pm-time--start, > .cm-html-embed > .pm-time--start),
+      :is(.HyperMD-task-line, li.task-list-item):has(> .pm-time--done, > p > .pm-time--done, > .cm-html-embed > .pm-time--done),
+      :is(.HyperMD-task-line, li.task-list-item):has(> .pm-time--hold, > p > .pm-time--hold, > .cm-html-embed > .pm-time--hold),
+      :is(.HyperMD-task-line, li.task-list-item):has(> .pm-time--cancel, > p > .pm-time--cancel, > .cm-html-embed > .pm-time--cancel)) > p > label.task-list-label > input.task-list-item-checkbox {
+    appearance: none;
+    border: 1px solid var(--task-hc-border) !important;
+    border-radius: 4px !important;
+    background: var(--task-hc-fill) var(--task-hc-icon) center / 100% 100% no-repeat !important;
+    --checkbox-marker-color: #FFFFFF;
+
+    &::before,
+    &::after { display: none !important; }
+  }
+
+  /* Text appearance is separate from the checkbox fill. */
+  :is(.HyperMD-task-line, li.task-list-item):is([data-task="x"], [data-task="X"], .dotpm-time-row--done):not(:is(.dotpm-time-row--start, .dotpm-time-row--hold, :is(.HyperMD-task-line, li.task-list-item):has(> .pm-time--start, > p > .pm-time--start, > .cm-html-embed > .pm-time--start), :is(.HyperMD-task-line, li.task-list-item):has(> .pm-time--hold, > p > .pm-time--hold, > .cm-html-embed > .pm-time--hold))):not(.dotpm-time-row--cancel):not(:is(.HyperMD-task-line, li.task-list-item):has(> .pm-time--cancel, > p > .pm-time--cancel, > .cm-html-embed > .pm-time--cancel)) {
+    color: color-mix(in srgb, var(--text-normal) 75%, transparent);
+    text-decoration-line: none !important;
+  }
+  :is(.HyperMD-task-line, li.task-list-item):is([data-task="/"], [data-task="-"], :is(.dotpm-time-row--start, .dotpm-time-row--hold, :is(.HyperMD-task-line, li.task-list-item):has(> .pm-time--start, > p > .pm-time--start, > .cm-html-embed > .pm-time--start), :is(.HyperMD-task-line, li.task-list-item):has(> .pm-time--hold, > p > .pm-time--hold, > .cm-html-embed > .pm-time--hold))) {
+    color: var(--text-normal);
+    text-decoration-line: none !important;
+  }
+  :is(.HyperMD-task-line, li.task-list-item):is([data-task="c"], [data-task="C"], [data-task="~"], .dotpm-time-row--cancel, :is(.HyperMD-task-line, li.task-list-item):has(> .pm-time--cancel, > p > .pm-time--cancel, > .cm-html-embed > .pm-time--cancel)) {
+    opacity: 0.5;
+    text-decoration-line: none !important;
+  }
+
+  :is(.pm-time, .task-time-badge, .ctt-time, .dataview-time-badge) {
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: inherit !important;
+    font-style: italic;
+    font-weight: var(--font-bold, 700);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  :is(.pm-time--plan, .task-time-badge[data-time-state="plan"], .ctt-time[data-time-state="plan"], .dataview-time-badge[data-time-state="plan"]) {
+    background-color: rgba(152, 115, 247, 0.12) !important;
+  }
+  :is(.pm-time--start, .task-time-badge[data-time-state="start"], .ctt-time[data-time-state="start"], .dataview-time-badge[data-time-state="start"]) {
+    background-color: rgba(230, 138, 0, 0.16) !important;
+  }
+  :is(.pm-time--done, .task-time-badge[data-time-state="done"], .ctt-time[data-time-state="done"], .dataview-time-badge[data-time-state="done"]) {
+    background-color: rgba(46, 158, 102, 0.16) !important;
+  }
+  :is(.pm-time--hold, .task-time-badge[data-time-state="hold"], .ctt-time[data-time-state="hold"], .dataview-time-badge[data-time-state="hold"]) {
+    background-color: rgba(224, 83, 85, 0.16) !important;
+  }
+  :is(.pm-time--cancel, .task-time-badge[data-time-state="cancel"], .ctt-time[data-time-state="cancel"], .dataview-time-badge[data-time-state="cancel"]) {
+    background-color: rgba(126, 134, 155, 0.16) !important;
+  }
+}
+
+.dotpm-dm-pop :is(button, input, select):focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+button.dotpm-dm-clear {
+  position:absolute;
+  z-index:2;
+  top:50%;
+  transform:translateY(-50%);
+  width:18px;
+  height:18px;
+  padding:0;
+  border:0;
+  border-radius:4px;
+  background:transparent;
+  color:var(--text-muted);
+  box-shadow:none;
+  line-height:1;
+}
+button.dotpm-dm-clear[data-role="clear-start"] { left:calc(25% + 19px); }
+button.dotpm-dm-clear[data-role="clear-end"] { left:calc(75% + 19px); }
+.dotpm-dm-seg-btn.is-on + button.dotpm-dm-clear { color:var(--text-on-accent); }
+button.dotpm-dm-clear:hover { background:color-mix(in srgb,currentColor 14%,transparent); box-shadow:none; }
+button.dotpm-dm-clear[hidden] { display:none; }
+
+.pm-time--running { margin-inline-start: 4px; }
+
+
+
+/* Keep the native caret and fold indicators inside the scroll container. */
+.dotpm-live-native .cm-scroller { padding-inline-start: 18px; }
+/* Feel the Notion places its handles inside the scroll container. */
+.dotpm-live-feel-notion .cm-scroller:has(> .block-handle-wrap:not(.is-right)) {
+  padding-left:96px;
+}
+.dotpm-live-feel-notion .cm-scroller:has(> .block-handle-wrap.is-right) {
+  padding-right:76px;
+}
+
+/* With a fold widget before the raw task marker, Chromium paints the native
+   caret at the line box edge. Move the marker inset to that edge. */
+.dotpm-live-native .HyperMD-task-line.HyperMD-list-line-1:has(> .cm-fold-indicator):has(> .cm-formatting-list + .cm-formatting-task) {
+  --dotpm-folded-task-line-height: 1.2;
+  border-inline-start: calc(var(--list-padding-inline-start, .75em) + 1px) solid transparent;
+  inset-inline-start: .025em;
+  line-height: var(--dotpm-folded-task-line-height);
+  padding-block: calc((var(--line-height-normal, 1.5) - var(--dotpm-folded-task-line-height)) * .5em);
+}
+.dotpm-live-native .HyperMD-task-line.HyperMD-list-line-1:has(> .cm-fold-indicator) > .cm-formatting-list:has(+ .cm-formatting-task) {
+  padding-inline-start: 0 !important;
+}
+
+.dotpm-duration-paren {
+  position:relative;
+  display:inline-block;
+  width:.4em;
+  -webkit-text-fill-color:transparent;
+}
+.dotpm-duration-paren::after {
+  content:attr(data-glyph);
+  position:absolute;
+  inset-block-start:0;
+  inset-inline-start:0;
+  -webkit-text-fill-color:currentColor;
+}
+
+.dotpm-time-compact { cursor:default; --no-tooltip:true; }
+.dotpm-time-compact[data-year-marker]::after {
+  content:attr(data-year-marker);
+  margin-inline-start:.3em;
+  font-size:.85em;
+  font-style:normal;
+}
+.dotpm-time-compact.dotpm-time-overdue::before {
+  content:"";
+  display:inline-block;
+  width:.42em;
+  height:.42em;
+  margin-inline-end:.36em;
+  border-radius:50%;
+  background:#e05355;
+  vertical-align:.15em;
+}
+.dotpm-time-detail {
+  position:fixed;
+  z-index:calc(var(--layer-modal, 50) + 60);
+  max-width:min(300px, calc(100vw - 16px));
+  padding:8px 11px;
+  border:2px solid color-mix(in srgb,var(--dotpm-time-detail-accent) 52%,var(--background-primary));
+  border-radius:8px;
+  background:color-mix(in srgb,var(--dotpm-time-detail-accent) 13%,var(--background-primary));
+  box-shadow:0 5px 18px rgb(0 0 0 / .14);
+  color:var(--text-normal);
+  font:var(--font-ui-small, 12px)/1.5 var(--font-interface);
+  font-variant-numeric:tabular-nums;
+  pointer-events:none;
+  opacity:0;
+  transform:translateY(4px) scale(.98);
+  transform-origin:top left;
+  transition:opacity 140ms ease-out, transform 180ms cubic-bezier(.2,.75,.3,1);
+}
+.dotpm-time-detail[data-time-state="plan"] { --dotpm-time-detail-accent:var(--interactive-accent,#9873f7); }
+.dotpm-time-detail[data-time-state="start"] { --dotpm-time-detail-accent:#e68a00; }
+.dotpm-time-detail[data-time-state="done"] { --dotpm-time-detail-accent:#2e9e66; }
+.dotpm-time-detail[data-time-state="hold"] { --dotpm-time-detail-accent:#e05355; }
+.dotpm-time-detail[data-time-state="cancel"] { --dotpm-time-detail-accent:#7e869b; }
+.dotpm-time-detail strong { display:flex; align-items:center; gap:5px; margin-bottom:2px; }
+.dotpm-time-detail strong::before {
+  content:"";
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:var(--dotpm-time-detail-accent);
+}
+.dotpm-time-detail.is-open { opacity:1; transform:none; }
+@media (prefers-reduced-motion:reduce) {
+  .dotpm-time-detail { transform:none; transition:none; }
+}
+.projectm-linked-control.clickable-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  flex-shrink: 0;
+}
+.projectm-linked-control.clickable-icon svg {
+  width: 14px;
+  height: 14px;
+}
+.pm-vh-actions .projectm-linked-toolbar {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.pm-vh--phone .projectm-linked-toolbar .pm-chip-btn-label {
+  display: none;
+}
+.projectm-linked-note-row .pm-table-title-inner {
+  flex-wrap: nowrap;
+  contain: inline-size;
+}
+.projectm-linked-note-row button.projectm-linked-title,
+.projectm-linked-note-row button.pm-chip {
+  appearance: none;
+  height: auto;
+  box-shadow: none;
+}
+.projectm-linked-note-row button.projectm-linked-title {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-normal);
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+.projectm-linked-note-row button.projectm-linked-title:hover {
+  color: var(--interactive-accent);
+}
+.projectm-linked-note-row button.pm-chip {
+  color: var(--pm-chip-color);
+  background: color-mix(in srgb, var(--pm-chip-color) 10%, transparent);
+}
+.projectm-linked-note-row button.pm-chip:hover {
+  background: color-mix(in srgb, var(--pm-chip-color) 18%, transparent);
+}
+.projectm-linked-note-row .pm-table-cell-actions .projectm-linked-control {
+  width: 24px;
+  height: 24px;
+}
+.projectm-linked-label {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+/* Compact date-kind tabs and inline time controls. */
+.dotpm-dm-fieldrow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 2px 0 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.dotpm-dm-pop button.dotpm-dm-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 29px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 7px;
+  box-shadow: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  transition: background .16s ease, color .16s ease;
+}
+.dotpm-dm-kind-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--kind-color); }
+.dotpm-dm-pop button.dotpm-dm-kind:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.dotpm-dm-pop button.dotpm-dm-kind[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--kind-color) 12%, var(--background-primary));
+  color: var(--kind-color);
+  font-weight: 600;
+}
+.dotpm-dm-pop button.dotpm-dm-kind:disabled {
+  color: var(--text-faint);
+  background: transparent;
+  opacity: .55;
+  cursor: default;
+}
+.dotpm-dm-pop button.dotpm-dm-kind:disabled .dotpm-dm-kind-dot { background: currentColor; }
+.dotpm-dm-pop button.dotpm-dm-kind:focus-visible { outline: 2px solid var(--kind-color); outline-offset: 1px; }
+.dotpm-dm-pop[data-edit-kind] button.dotpm-dm-primary { background: var(--dotpm-edit-color); box-shadow: none; }
+.dotpm-dm-clock {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: 28px;
+  padding: 0 3px;
+  border-radius: 6px;
+  background: var(--background-secondary);
+  color: var(--text-muted);
+}
+.dotpm-dm-clock-part { display: flex; align-items: center; min-width: 0; }
+.dotpm-dm-pop .dotpm-dm-clock input {
+  width: 25px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  box-shadow: none;
+  background: transparent;
+  color: var(--text-normal);
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.dotpm-dm-pop .dotpm-dm-clock input:focus { background: var(--background-primary); box-shadow: 0 0 0 1px var(--interactive-accent); }
+.dotpm-dm-pop .dotpm-dm-clock input[aria-invalid="true"] { box-shadow: 0 0 0 1px var(--text-error); }
+.dotpm-dm-clock-arrows { display: flex; flex-direction: column; }
+.dotpm-dm-pop .dotpm-dm-clock-arrows button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 13px;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-muted);
+  box-shadow: none;
+}
+.dotpm-dm-pop .dotpm-dm-clock-arrows button:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.dotpm-dm-clock-arrows svg { width: 11px; height: 11px; }
+.dotpm-dm-clock input:disabled, .dotpm-dm-clock button:disabled { opacity: .38; }
+.dotpm-dm-pop .dotpm-dm-seg[hidden],
+.dotpm-dm-pop .dotpm-dm-clear[hidden] { display: none; }
+.dotpm-dm-pop[data-edit-kind]:not([data-edit-kind="plan"]) {
+  --interactive-accent: var(--dotpm-edit-color);
+  --interactive-accent-hover: var(--dotpm-edit-color);
+}
+
+/* Balanced calendar and point-in-time dial. */
+.dotpm-dm-pop.dotpm-dm-dial-layout {
+  width: calc(var(--dotpm-calendar-width) + var(--dotpm-time-width) + 22px);
+  max-width: calc(100vw - 20px);
+  box-sizing: border-box;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 12px;
+}
+.dotpm-dm-dial-layout .dotpm-dm-date-column { display: flex; min-width: 0; gap: 8px; }
+.dotpm-dm-dial-layout .dotpm-dm-fieldrow {
+  flex: 0 0 auto;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 4px;
+  padding: 1px 7px 0 0;
+  border: 0;
+  border-inline-end: 1px solid var(--background-modifier-border);
+}
+.dotpm-dm-dial-layout button.dotpm-dm-kind { flex: 0 0 auto; justify-content: flex-start; height: 24px; padding-inline: 6px; border-radius: 999px; white-space: nowrap; }
+.dotpm-dm-dial-layout .dotpm-dm-body { display: grid; align-items: stretch; grid-template-columns: var(--dotpm-calendar-width) minmax(0, 1fr); gap: 0; }
+.dotpm-dm-dial-layout .dotpm-dm-cal { flex: 1; width: auto; min-width: 0; gap: 4px; }
+.dotpm-dm-dial-layout .dotpm-dm-head { height: 24px; }
+.dotpm-dm-dial-layout .dotpm-dm-week { margin: 0; font-size: 10px; }
+.dotpm-dm-dial-layout .dotpm-dm-grid { flex: none; grid-auto-rows: 24px; gap: 2px; }
+.dotpm-dm-dial-layout button.dotpm-dm-day { height: 100%; min-height: 23px; animation: none; }
+.dotpm-dm-dial-layout .dotpm-dm-date-group { padding-top: 5px; border-top: 1px solid var(--background-modifier-border); }
+.dotpm-dm-dial-layout button.dotpm-dm-chip { height: 23px; animation: none; background: var(--background-secondary); }
+.dotpm-dm-pop.dotpm-dm-dial-layout .dotpm-dm-side { width: auto; min-width: 0; gap: 5px; align-self: stretch; justify-content: flex-start; }
+.dotpm-dm-dial-layout .dotpm-dm-time-group { gap: 4px; }
+.dotpm-dm-dial-layout .dotpm-dm-timerow { justify-content: space-between; height: 25px; }
+.dotpm-dm-dial-layout .dotpm-dm-check { font-size: 11px; }
+.dotpm-dm-dial-layout .dotpm-dm-clock { flex: 0 0 76px; gap: 3px; height: 25px; }
+.dotpm-dm-dial-layout .dotpm-dm-clock input { width: 27px; font-size: 13px; }
+.dotpm-dm-dial-layout .dotpm-dm-seg { background: var(--background-secondary); }
+.dotpm-dm-pop.dotpm-dm-dial-layout .dotpm-dm-seg-reserved[hidden] {
+  display: flex;
+  box-sizing: border-box;
+  height: 28px;
+  visibility: hidden;
+}
+.dotpm-dm-dial-layout .dotpm-dm-seg-thumb { box-shadow: none; }
+.dotpm-dm-dial {
+  position: relative;
+  width: min(100%, 154px);
+  aspect-ratio: 1;
+  margin: auto;
+  border-radius: 50%;
+  background: var(--background-secondary);
+  touch-action: none;
+  user-select: none;
+  transition: opacity .2s ease, filter .2s ease;
+}
+.dotpm-dm-dial.is-disabled { opacity: .3; filter: grayscale(1); }
+.dotpm-dm-dial > svg { width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.dotpm-dm-dial-orbit { fill: none; stroke: var(--background-modifier-border); stroke-width: .6; }
+.dotpm-dm-dial-orbit.inner { stroke-dasharray: 1 4; opacity: .55; }
+.dotpm-dm-dial-tick { stroke: var(--text-faint); stroke-width: 1; opacity: .65; }
+.dotpm-dm-hour-ray { stroke: var(--interactive-accent); stroke-width: 3; stroke-linecap: round; opacity: .3; }
+.dotpm-dm-minute-ray { stroke: var(--interactive-accent); stroke-width: 1.4; stroke-linecap: round; opacity: .5; }
+.dotpm-dm-pop button.dotpm-dm-dial-number {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 19px;
+  height: 19px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  box-shadow: none;
+  transform: translate(-50%, -50%);
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  cursor: grab;
+}
+.dotpm-dm-pop button.dotpm-dm-dial-number.hour { font-size: 11px; font-weight: 600; color: var(--text-normal); }
+.dotpm-dm-pop button.dotpm-dm-dial-number:hover { background: var(--background-modifier-hover); }
+.dotpm-dm-pop button.dotpm-dm-dial-number[aria-pressed="true"] { color: var(--text-on-accent); background: var(--interactive-accent); }
+.dotpm-dm-pop button.dotpm-dm-dial-number:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
+.dotpm-dm-pop button.dotpm-dm-period {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 32px; height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: var(--background-primary);
+  color: var(--interactive-accent);
+  box-shadow: 0 1px 4px #00000008;
+  font-size: 11px;
+  font-weight: 600;
+}
+.dotpm-dm-dial button:disabled { cursor: default; }
+.dotpm-dm-dial-layout .dotpm-dm-bottom { gap: 3px; padding-top: 6px; border-top: 1px solid var(--background-modifier-border); }
+.dotpm-dm-dial-layout .dotpm-dm-preview { font-size: 10.5px; background: transparent; padding: 4px 0; animation: none; }
+.dotpm-dm-pop button.dotpm-dm-icon-button {
+  display: flex; align-items: center; justify-content: center;
+  flex: 0 0 25px; width: 25px; height: 28px; padding: 0;
+  border: 0; border-radius: 6px; box-shadow: none; background: transparent; color: var(--text-muted);
+}
+.dotpm-dm-icon-button svg { width: 13px; height: 13px; }
+.dotpm-dm-pop button.dotpm-dm-icon-button:hover { background: var(--background-modifier-hover); }
+.dotpm-dm-pop button.dotpm-dm-icon-button:disabled { opacity: .3; }
+.dotpm-dm-dial-layout .dotpm-dm-footer { margin-left: 6px; gap: 2px; }
+@media (max-width: 500px) {
+  .dotpm-dm-dial-layout button.dotpm-dm-dial-number { width: 18px; height: 18px; font-size: 10px; }
+  .dotpm-dm-dial-layout .dotpm-dm-preview { font-size: 10px; }
+}
+@media (prefers-reduced-motion: reduce) { .dotpm-dm-dial { transition: none; } }
+
+.dotpm-dm-durations { display: flex; gap: 3px; }
+.dotpm-dm-pop .dotpm-dm-durations button {
+  flex: 1; min-width: 0; height: 22px; padding: 0 2px;
+  border: 0; border-radius: 6px; box-shadow: none;
+  background: var(--background-secondary); color: var(--text-muted);
+  font-size: 10px; font-variant-numeric: tabular-nums;
+}
+.dotpm-dm-pop .dotpm-dm-durations button:hover { background: var(--background-modifier-hover); }
+.dotpm-dm-pop .dotpm-dm-durations button[aria-pressed="true"] {
+  color: var(--interactive-accent);
+  background: color-mix(in srgb, var(--interactive-accent) 12%, var(--background-primary));
+}
+.dotpm-dm-pop .dotpm-dm-durations button:disabled { opacity: .3; cursor: default; }
+
+.dotpm-dm-result-row { display: flex; align-items: center; gap: 5px; }
+.dotpm-dm-pop.dotpm-dm-dial-layout .dotpm-dm-result-row input.dotpm-dm-preview {
+  flex: 1; min-width: 0; height: 32px; padding: 0 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px; box-shadow: none;
+  background: var(--background-secondary); color: var(--text-normal);
+  font-family: var(--font-monospace); font-size: 12px;
+}
+.dotpm-dm-pop.dotpm-dm-dial-layout .dotpm-dm-result-row input:focus {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--interactive-accent) 12%, transparent);
+}
+.dotpm-dm-pop.dotpm-dm-dial-layout .dotpm-dm-result-row input[aria-invalid="true"] { border-color: var(--text-error); }
+.dotpm-dm-dial-layout .dotpm-dm-bottom { justify-content: flex-end; }
+
+.dotpm-dm-pop .dotpm-dm-result-row { display: flex; flex-direction: column; gap: 3px; align-items: stretch; }
+.dotpm-dm-result-entry { display: flex; align-items: center; position: relative; }
+.dotpm-dm-pop.dotpm-dm-dial-layout .dotpm-dm-result-entry input.dotpm-dm-preview {
+  width: 100%; padding-inline: 52px; height: 29px; text-align: center;
+  font-family: var(--font-interface); font-size: 12px;
+}
+.dotpm-dm-result-entry .dotpm-dm-icon-button { position: absolute; right: 26px; }
+.dotpm-dm-result-entry .dotpm-dm-icon-button[data-role="clear-date"] { right: 1px; }
+.dotpm-dm-result-output { text-align: center; color: var(--interactive-accent); font-size: 11px; line-height: 1.5; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.dotpm-dm-result-output.is-invalid { color: var(--text-error); }
+
+
+/* Reveal the time column from the calendar edge. */
+.dotpm-dm-pop.dotpm-dm-dial-layout {
+  --dotpm-calendar-width: min(316px, 58vw);
+  --dotpm-time-width: min(206px, calc(42vw - 42px));
+  --dotpm-time-motion: 230ms cubic-bezier(.22,.72,.22,1);
+}
+.dotpm-dm-pop.dotpm-dm-dial-layout:not(.is-time-open) { width: calc(var(--dotpm-calendar-width) + 22px); }
+.dotpm-dm-pop.dotpm-dm-dial-layout .dotpm-dm-side { overflow: clip; min-height: 0; contain: size; }
+.dotpm-dm-pop.dotpm-dm-dial-layout.is-time-open .dotpm-dm-side { min-height: 216px; }
+.dotpm-dm-time-content {
+  box-sizing: border-box;
+  width: var(--dotpm-time-width);
+  min-height: 100%;
+  padding-inline-start: 12px;
+  display: grid;
+  grid-template-rows: auto minmax(154px, 1fr) auto;
+  gap: 4px;
+}
+.dotpm-dm-dial-layout .dotpm-dm-durations {
+  border-top: 1px solid var(--background-modifier-border);
+  padding-top: 5px;
+}
+.dotpm-dm-pop .dotpm-dm-durations button { height: 23px; }
+.dotpm-dm-dial-layout:not(.is-time-open) .dotpm-dm-time-content {
+  opacity: 0;
+  transform: translateX(-12px);
+}
+.dotpm-dm-dial-layout .dotpm-dm-date-group {
+  box-sizing: border-box;
+  min-height: 0;
+  height: 29px;
+  margin-top: auto;
+  overflow: clip;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dotpm-dm-pop.dotpm-dm-dial-layout.has-time-motion {
+    transition: width var(--dotpm-time-motion), left var(--dotpm-time-motion), top var(--dotpm-time-motion);
+  }
+  .dotpm-dm-time-content { transition: opacity var(--dotpm-time-motion), transform var(--dotpm-time-motion); }
+}
+.dotpm-dm-dial-layout .dotpm-dm-bottom { justify-content: space-between; }
+.dotpm-dm-pop button.dotpm-dm-toggle-time { display: inline-flex; align-items: center; gap: 5px; padding-inline: 6px; }
+.dotpm-dm-toggle-time span { display: flex; }
+.dotpm-dm-toggle-time svg { width: 13px; height: 13px; }
+
+.dotpm-dm-dial {
+  background: radial-gradient(circle, var(--background-primary) 0 45%, var(--background-secondary) 46%);
+  box-shadow: inset 0 0 0 1px var(--background-modifier-border);
+}
+.dotpm-dm-dial-orbit.inner { stroke-dasharray: none; opacity: .7; }
+.dotpm-dm-dial-tick { opacity: .45; }
+.dotpm-dm-hour-ray { opacity: .58; }
+.dotpm-dm-minute-ray { opacity: .78; }
+.dotpm-dm-minute-dot { fill: var(--interactive-accent); }
+.dotpm-dm-pop button.dotpm-dm-dial-number { background: transparent; }
+.dotpm-dm-pop button.dotpm-dm-dial-number.hour { background: var(--background-primary); }
+.dotpm-dm-pop button.dotpm-dm-dial-number:hover { background: var(--background-modifier-hover); }
+.dotpm-dm-pop button.dotpm-dm-dial-number.hour[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--interactive-accent) 15%, var(--background-primary));
+  color: var(--text-normal);
+  box-shadow: inset 0 0 0 1px var(--interactive-accent);
+}
+.dotpm-dm-pop button.dotpm-dm-period {
+  border-radius: 50%;
+  width: 29px; height: 29px;
+  box-shadow: 0 0 0 1px var(--background-modifier-border);
+  font-size: 10px;
+}
