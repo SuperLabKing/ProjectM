@@ -728,6 +728,19 @@ button.dotpm-dm-clear[hidden] { display:none; }
   width: 24px;
   height: 24px;
 }
+.projectm-linked-mark {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  color: var(--text-faint);
+}
+.projectm-linked-mark svg {
+  width: 13px;
+  height: 13px;
+}
+.projectm-linked-mark:has(+ .projectm-linked-title:is(:hover, :focus-visible)) {
+  color: var(--interactive-accent);
+}
 .projectm-linked-label {
   flex-shrink: 0;
   color: var(--text-muted);
@@ -1052,4 +1065,15 @@ button.dotpm-dm-clear[hidden] { display:none; }
   width: 29px; height: 29px;
   box-shadow: 0 0 0 1px var(--background-modifier-border);
   font-size: 10px;
+}
+
+.projectm-linked-note-row .projectm-linked-mark.clickable-icon {
+  width: 13px;
+  height: 16px;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.projectm-linked-note-row .projectm-linked-mark:is(:hover, :focus-visible) {
+  color: var(--interactive-accent);
 }

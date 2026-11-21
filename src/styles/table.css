@@ -702,3 +702,39 @@ button.pm-chip-rm {
 .pm-task-group-progress .pm-progress {
   width: 52px;
 }
+
+.pm-table-cell--summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pm-task-note-mark {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  color: var(--text-faint);
+}
+.pm-task-note-mark svg {
+  width: 13px;
+  height: 13px;
+}
+.pm-task-note-mark + .pm-task-title-text {
+  max-width: calc(100% - 21px);
+  overflow-wrap: anywhere;
+}
+.pm-task-note-mark:has(+ .pm-task-title-text:hover) {
+  color: var(--interactive-accent);
+}
+
+button.pm-task-note-mark {
+  width: 13px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+}
+button.pm-task-note-mark:hover,
+button.pm-task-note-mark:focus-visible { color: var(--interactive-accent); }

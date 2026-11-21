@@ -64,7 +64,8 @@ export class TaskView extends ItemView {
     return Promise.resolve()
   }
 
-  onClose(): Promise<void> {
+  async onClose(): Promise<void> {
+    await this.editor?.flush()
     this.editor?.handleClose()
     this.editor = null
     this.contentEl.empty()
@@ -72,6 +73,7 @@ export class TaskView extends ItemView {
   }
 
   private async loadTask(): Promise<void> {
+    await this.editor?.flush()
     this.editor?.handleClose()
     this.editor = null
     this.contentEl.empty()
@@ -102,7 +104,7 @@ export class TaskView extends ItemView {
       task,
       parentId ?? null,
       () => {},
-      { surface: 'tab', close: () => this.leaf.detach(), scope: this.keyScope },
+      { surface: 'tab', close: () => { void this.editor?.flush().then((saved) => { if (saved) this.leaf.detach() }) }, scope: this.keyScope },
       defaults
     )
     this.editor.mount(this.contentEl)

@@ -1,7 +1,8 @@
-import { type App, ButtonComponent, Modal } from 'obsidian'
+import { type App, ButtonComponent, Modal, Platform } from 'obsidian'
 import type PMPlugin from '#main'
 import { type Project, type Task, flattenTasks, t } from '@dotpm/core'
 import type { ProjectRef } from '#store'
+import type { ProjectView } from '../views/ProjectView'
 import { TaskModal } from '#modals/TaskModal'
 import { PersonLookupModal, ProjectPickerModal, TaskPickerModal } from '#modals/PickerModals'
 import { ImportModal } from '#modals/ImportModal'
@@ -209,12 +210,24 @@ class DuplicateSubtasksModal extends Modal {
 
 export interface OpenTaskModalOpts {
   task?: Task | null
+  anchor?: HTMLElement
   parentId?: string | null
   defaults?: Partial<Task>
   onSave: (task: Task) => void | Promise<void>
 }
 
 export function openTaskModal(plugin: PMPlugin, project: Project, opts: OpenTaskModalOpts): void {
+  if (opts.task && plugin.settings.taskEditorSurface === 'panel' && !Platform.isPhone) {
+    const views = plugin.app.workspace.getLeavesOfType('pm-project').map((leaf) => leaf.view as ProjectView)
+    const anchor = opts.anchor
+    const view = anchor
+      ? views.find((candidate) => candidate.containerEl.contains(anchor))
+      : views.find((candidate) => candidate === plugin.app.workspace.getMostRecentLeaf()?.view)
+    if (view) {
+      view.openTaskDetails(project, opts)
+      return
+    }
+  }
   // A tab is addressed by path, so a task with no note of its own still needs the modal.
   const canOpenTab = !opts.task || Boolean(opts.task.filePath)
   if (plugin.settings.taskEditorSurface === 'tab' && canOpenTab) {

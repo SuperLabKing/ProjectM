@@ -14,6 +14,7 @@ interface SubtaskPreviewOptions {
   app: App
   component: Component
   loadDescription: (task: Task) => Promise<string>
+  changed: () => void
   openSubtask: (filePath: string) => void
 }
 
@@ -64,6 +65,7 @@ export function renderSubtasksPanel(
           sub.progress = checked ? 100 : 0
           renderSubtasks()
           renderCount()
+          options.changed()
         })
 
       // A subtask typed into the add field below has no note yet, so there is nothing to
@@ -130,6 +132,7 @@ export function renderSubtasksPanel(
           task.subtasks = task.subtasks.filter((s) => s.id !== sub.id)
           renderSubtasks()
           renderCount()
+          options.changed()
         })
     }
   }
@@ -151,5 +154,6 @@ export function renderSubtasksPanel(
     addInput.value = ''
     renderSubtasks()
     renderCount()
+    options.changed()
   })
 }

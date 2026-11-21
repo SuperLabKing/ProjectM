@@ -87,7 +87,8 @@ textarea.pm-te-title:focus {
 
 /* The `button` prefix is required: core's `button:not(.clickable-icon)` outranks a bare
    class, and without it these inherit the default grey fill and inset shadow. */
-button.pm-prop-inline {
+button.pm-prop-inline,
+.pm-task-group-readonly {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -106,6 +107,7 @@ button.pm-prop-inline {
   cursor: pointer;
   appearance: none;
 }
+.pm-task-group-readonly { cursor: default; }
 .pm-prop-inline:hover {
   background: var(--background-modifier-hover);
 }
@@ -657,3 +659,128 @@ button.pm-icon-trigger {
   outline: 2px solid var(--interactive-accent);
   outline-offset: -1px;
 }
+
+.pm-task-detail {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 min(var(--pm-task-detail-width, 410px), 58%);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--background-primary);
+  border-inline-start: 1px solid var(--background-modifier-border);
+}
+
+.pm-task-detail-resize {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 6px;
+  touch-action: none;
+  cursor: col-resize;
+}
+
+.pm-task-detail-resize::after {
+  position: absolute;
+  top: 50%;
+  left: 1px;
+  width: 3px;
+  height: 32px;
+  border-radius: 2px;
+  transform: translateY(-50%);
+  background: var(--background-modifier-border-hover);
+  content: '';
+}
+
+.pm-task-detail[hidden], .pm-task-detail-resize[hidden] { display: none; }
+.pm-task-detail .pm-te-body { padding: 16px; }
+.pm-task-detail .pm-te-title { font-size: 21px; }
+.pm-task-detail .pm-prop-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px 10px;
+}
+.pm-task-detail .pm-prop-grid .pm-prop-row {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+.pm-task-detail .pm-prop-grid .pm-prop-label { padding-top: 0; }
+.pm-task-detail .pm-te-header { gap: 7px; padding-inline: 12px; }
+.pm-task-detail .pm-te-crumb-id { display: none; }
+.pm-task-detail .pm-te-crumb-sep { display: none; }
+
+.pm-te-save-state {
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-size: var(--font-ui-smaller);
+}
+.pm-te-save-state[data-state="saved"]::before {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-inline-end: 5px;
+  vertical-align: middle;
+  border-radius: 50%;
+  background: var(--text-success);
+}
+.pm-te-save-state[data-state="failed"] { color: var(--text-error); }
+
+.pm-te-props .pm-prop-grid--essential {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 12px;
+}
+.pm-te-props .pm-prop-grid--essential .pm-prop-row {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+.pm-te-props .pm-prop-grid--essential .pm-prop-label { padding-top: 0; }
+
+.pm-task-more-props { margin-block: 5px 10px; }
+.pm-task-more-props > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 4px 5px;
+  border-radius: var(--radius-s);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--font-ui-small);
+}
+.pm-task-more-props > summary::-webkit-details-marker { display: none; }
+.pm-task-more-props > summary:hover { background: var(--background-modifier-hover); }
+.pm-task-more-chevron {
+  display: inline-block;
+  font-size: 16px;
+  line-height: 1;
+}
+.pm-task-more-props[open] .pm-task-more-chevron { transform: rotate(90deg); }
+.pm-task-more-props > .pm-prop-grid { margin-top: 6px; }
+.pm-te-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+.pm-te-summary .pm-modal-section-title { margin: 0; }
+textarea.pm-te-summary-input {
+  width: 100%;
+  min-height: 48px;
+  padding: 6px 8px;
+  resize: vertical;
+  font: inherit;
+  font-size: var(--font-ui-small);
+}
+.pm-te-surface .pm-modal-desc-section { padding-top: 9px; }
+
+.pm-linked-details h3 { margin: 0 0 15px; overflow-wrap: anywhere; }
+.pm-linked-details-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.pm-linked-details-fields label { display: grid; gap: 4px; min-width: 0; }
+.pm-linked-details-fields select { width: 100%; }
+.pm-linked-details-open { display: inline-flex; align-items: center; gap: 7px; margin-block: 14px; }
+.pm-linked-details-open svg { width: 14px; height: 14px; }
+.pm-linked-details-preview { overflow-wrap: anywhere; }

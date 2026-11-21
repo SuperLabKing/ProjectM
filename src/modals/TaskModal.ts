@@ -36,6 +36,12 @@ export class TaskModal extends Modal {
     this.editor.mount(contentEl)
   }
 
+  close(): void {
+    void this.editor.flush().then((saved) => {
+      if (saved) super.close()
+    })
+  }
+
   onClose(): void {
     this.editor.handleClose()
     this.contentEl.empty()

@@ -1521,17 +1521,29 @@ class LinkedNotesTable {
         }
         const titleInner = doc.createElement("div");
         titleInner.className = "pm-table-title-inner";
-        const label = this.button(title, () => {
+        const openNote = () => {
           const target = this.app.vault.getFileByPath(path);
           if (target) this.app.workspace.getLeaf("tab").openFile(target);
           else new Notice("找不到原笔记。");
+        };
+        const label = this.button(title, () => {
+          if (typeof this.view.openLinkedTaskDetails === "function") this.view.openLinkedTaskDetails(owner, record.id, path);
+          else openNote();
         });
         label.className = "pm-task-title-text projectm-linked-title";
-        label.title = title;
-        const badge = doc.createElement("span");
-        badge.className = "projectm-linked-label";
-        badge.textContent = file ? "关联" : "原笔记缺失";
-        titleInner.append(label, badge);
+        label.title = title + " · 关联笔记详情";
+        label.setAttribute("aria-label", title + "，查看关联笔记详情");
+        if (file) {
+          const badge = this.button("打开原笔记", openNote, "link-2");
+          badge.classList.add("projectm-linked-mark");
+          badge.title = "打开原笔记";
+          titleInner.append(badge, label);
+        } else {
+          const badge = doc.createElement("span");
+          badge.className = "projectm-linked-label";
+          badge.textContent = "原笔记缺失";
+          titleInner.append(label, badge);
+        }
         cell.append(titleInner);
       } else if (column === "status") {
         const chip = this.button(status?.label || record.status, event => {
@@ -2372,6 +2384,8 @@ class LiveEditorBinding {
       this.pushToEditor(text);
     };
     this.ta.addEventListener("input", this.onTaInput, true);
+    this.onHostFlush = () => this.flushToTextarea();
+    this.ta.addEventListener("pm-flush-description", this.onHostFlush);
 
     // 暴露给日期选择器脚本做光标插入
     try {
@@ -2434,6 +2448,7 @@ class LiveEditorBinding {
     try { this.flushToTextarea(); } catch (e) {}
     try { if (this.refs) this.app.workspace.offref(this.refs); } catch (e) {}
     try { this.ta.removeEventListener("input", this.onTaInput, true); } catch (e) {}
+    this.ta.removeEventListener("pm-flush-description", this.onHostFlush);
     try {
       const cm = this.editor && this.editor.cm;
       if (cm && this.originalParent) {
@@ -3105,7 +3120,7 @@ async function installDatePicker({ plugin, app, obsidian }) {
     };
 
     const taskModal = () => {
-        const all = [...document.querySelectorAll(".pm-modal--task")].filter((m) => m.isConnected);
+        const all = [...document.querySelectorAll(".pm-modal--task, .pm-task-detail:not([hidden])")].filter((m) => m.isConnected);
         const visible = all.filter((m) => m.offsetParent !== null);
         const list = visible.length ? visible : all;
         return list.length ? list[list.length - 1] : null;

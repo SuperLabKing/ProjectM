@@ -107,6 +107,13 @@ export function renderTaskRow(
       case 'title':
         renderTitleCell(row, flat, project, ctx)
         break
+      case 'summary': {
+        const text = task.summary?.replace(/\s+/g, ' ').trim() ?? ''
+        const { el } = new CustomFieldCell(row, { kind: 'text', text })
+        el.addClass('pm-table-cell--summary')
+        if (text) el.setAttribute('title', text)
+        break
+      }
       case 'project':
         new ProjectCell(row, {
           title: project.title,
@@ -192,9 +199,15 @@ function renderTitleCell(row: HTMLElement, flat: TableTreeRow, project: Project,
     treeGuides: ctx.showSubtreeConnections ? flat.guides : null,
     isLastChild: flat.isLastChild,
     showTagColors: ctx.plugin.settings.showTagColors,
+    onOpenNote: task.filePath ? () => { void ctx.plugin.openAsMarkdown(task.filePath!) } : undefined,
     onTitleClick: () => {
+      if (ctx.plugin.settings.taskEditorSurface === 'panel') {
+        ctx.state.selectedTaskId = task.id
+        updateSelectedRow(ctx.state)
+      }
       openTaskModal(ctx.plugin, project, {
         task,
+        anchor: row,
         onSave: async () => {
           await ctx.onRefresh()
         }

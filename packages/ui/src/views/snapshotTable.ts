@@ -154,6 +154,13 @@ export function renderSnapshotTable(container: HTMLElement, model: ViewModel): H
             onAddSubtask: noop
           })
           break
+        case 'summary': {
+          const text = task.summary?.replace(/\s+/g, ' ').trim() ?? ''
+          const { el } = new CustomFieldCell(row, { kind: 'text', text })
+          el.addClass('pm-table-cell--summary')
+          if (text) el.setAttribute('title', text)
+          break
+        }
         case 'project':
           new ProjectCell(row, { title: owner?.title ?? '', color: owner?.color ?? '', onClick: noop })
           break

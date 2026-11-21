@@ -26,11 +26,9 @@ export function groupsFor(ctx: TableContext): ProjectTaskGroup[] {
 export function groupRows(rows: TableTreeRow[], ctx: TableContext): TableDisplayRow[] {
   const groups = groupsFor(ctx)
   const project = ctx.scope.spec.kind === 'project' ? ctx.scope.primary : null
-  if (!project || !groups.length) {
-    return project && Object.hasOwn(ctx.plugin.settings.projectTaskGroups, project.id)
-      ? [{ id: UNGROUPED }, ...rows]
-      : rows
-  }
+  if (!project) return rows
+  const ungroupedCollapsed = ctx.plugin.settings.collapsedUngroupedProjects.includes(project.id)
+  if (!groups.length) return [{ id: UNGROUPED }, ...(ungroupedCollapsed ? [] : rows)]
   const memberships = new Map(groups.flatMap((group) => group.members.map((id) => [id, group.id] as const)))
   const progress = new Map<string, GroupProgress>()
   const statuses = new Map(ctx.statuses.map((status) => [status.id, status]))
@@ -64,7 +62,7 @@ export function groupRows(rows: TableTreeRow[], ctx: TableContext): TableDisplay
   }
   return [
     { id: UNGROUPED },
-    ...(buckets.get(UNGROUPED) ?? []),
+    ...(ungroupedCollapsed ? [] : (buckets.get(UNGROUPED) ?? [])),
     ...groups.flatMap((group) => [
       { id: PREFIX + group.id, group, progress: progress.get(group.id) ?? { processed: 0, total: 0 } },
       ...(group.collapsed ? [] : (buckets.get(group.id) ?? []))
@@ -254,24 +252,41 @@ export function renderGroupRow(tbody: HTMLElement, row: GroupRow, ctx: TableCont
   tr.dataset.pmFoldRow = id
   const cell = tr.createEl('td', { attr: { colspan: String(colCount) } })
   const content = cell.createDiv('pm-task-group-content')
-  if (group) {
-    const toggle = content.createEl('button', { cls: 'clickable-icon pm-task-group-toggle', type: 'button' })
-    setIcon(toggle, group.collapsed ? 'chevron-right' : 'chevron-down')
-    toggle.setAttribute('aria-expanded', String(!group.collapsed))
-    toggle.setAttribute('aria-label', group.name)
-    toggle.addEventListener(
-      'click',
-      safeAsync(() =>
-        animateTableFold(ctx.state.wrapper, tbody, id, !group.collapsed, () =>
-          updateGroups(ctx, (groups) =>
-            groups.map((item) => (item.id === group.id ? { ...item, collapsed: !item.collapsed } : item))
+  const project = ctx.scope.primary
+  const name = group?.name ?? t('taskGroups.ungrouped')
+  const collapsed = group
+    ? group.collapsed === true
+    : !!project && ctx.plugin.settings.collapsedUngroupedProjects.includes(project.id)
+  const toggle = content.createEl('button', { cls: 'clickable-icon pm-task-group-toggle', type: 'button' })
+  setIcon(toggle, collapsed ? 'chevron-right' : 'chevron-down')
+  toggle.setAttribute('aria-expanded', String(!collapsed))
+  toggle.setAttribute('aria-label', name)
+  toggle.addEventListener(
+    'click',
+    safeAsync(() =>
+      animateTableFold(ctx.state.wrapper, tbody, id, !collapsed, async () => {
+        if (group) {
+          await updateGroups(ctx, (groups) =>
+            groups.map((item) => (item.id === group.id ? { ...item, collapsed: !collapsed } : item))
           )
-        )
-      )
+        } else if (project) {
+          const settings = ctx.plugin.settings
+          const ids = new Set(settings.collapsedUngroupedProjects)
+          if (collapsed) ids.delete(project.id)
+          else ids.add(project.id)
+          settings.collapsedUngroupedProjects = [...ids]
+          await ctx.plugin.saveSettings()
+          await ctx.onRefresh()
+        }
+      })
     )
-  }
+  )
   if (group?.icon) renderGlyph(content, { icon: group.icon })
-  content.createSpan({ cls: 'pm-task-group-name', text: group?.name ?? t('taskGroups.ungrouped') })
+  if (!group) {
+    const icon = content.createSpan({ cls: 'pm-task-group-ungrouped-icon', attr: { 'aria-hidden': 'true' } })
+    setIcon(icon, 'inbox')
+  }
+  content.createSpan({ cls: 'pm-task-group-name', text: name })
   if (group?.description) {
     content.createSpan({
       cls: 'pm-task-group-description',

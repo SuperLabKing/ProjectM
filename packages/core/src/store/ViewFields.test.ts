@@ -35,6 +35,7 @@ describe('view fields', () => {
     const fields: ViewFields = { table: { visible: ['due', 'cf:gone', 'title', 'status'] } }
     expect(shownFields(fields, 'table', one)).toEqual(['title', 'due', 'status'])
     expect(hiddenFields(fields, 'table', one)).toEqual([
+      'summary',
       'priority',
       'assignees',
       'start',

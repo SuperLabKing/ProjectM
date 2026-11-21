@@ -226,6 +226,7 @@ export function mapRawToTask(r: Record<string, unknown>, overrides?: Partial<Tas
     id: r.id as string,
     title: (r.title as string) ?? t('common.untitled'),
     description: (r.description as string) ?? '',
+    summary: typeof r.pmSummary === 'string' ? r.pmSummary : undefined,
     type: (r.type as string) === 'milestone' ? 'milestone' : (r.type as string) === 'subtask' ? 'subtask' : 'task',
     status: (r.status as Task['status']) ?? 'todo',
     priority: (r.priority as Task['priority']) ?? 'medium',

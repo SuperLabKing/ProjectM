@@ -602,7 +602,7 @@ describe('fields popover', () => {
     document.body.findAll('.pm-vis-row')[1].querySelector<HTMLButtonElement>('.pm-vis-eye')?.click()
     expect(fields.table?.visible).not.toContain('status')
     expect(document.body.find('.pm-fields-pop .pm-pop-head.pm-pop-section')).not.toBeNull()
-    document.body.find('.pm-vis-row.is-hidden')?.querySelector<HTMLButtonElement>('.pm-vis-eye')?.click()
+    document.body.find('.pm-vis-row.is-hidden[data-id="status"]')?.querySelector<HTMLButtonElement>('.pm-vis-eye')?.click()
     expect(fields.table).toBeUndefined()
     expect(labels()).toEqual(tableLabels)
     expect(onChange).toHaveBeenCalledTimes(2)

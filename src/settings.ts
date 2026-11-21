@@ -104,13 +104,12 @@ export class PMSettingTab extends PluginSettingTab {
             control: {
               type: 'dropdown',
               key: 'taskEditorSurface',
-              options: { modal: t('settings.taskEditorSurface.modal'), tab: t('settings.taskEditorSurface.tab') }
+              options: {
+                modal: t('settings.taskEditorSurface.modal'),
+                panel: t('settings.taskEditorSurface.panel'),
+                tab: t('settings.taskEditorSurface.tab')
+              }
             }
-          },
-          {
-            name: t('settings.saveTaskOnClose.name'),
-            desc: t('settings.saveTaskOnClose.desc'),
-            control: { type: 'toggle', key: 'saveTaskOnClose' }
           },
           {
             name: t('settings.saveShortcut.name'),

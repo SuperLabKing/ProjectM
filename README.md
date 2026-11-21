@@ -1,6 +1,6 @@
 <div align="center">
 
-# dotpm
+# ProjectMaster
 
 **Project management inside Obsidian. Table, Gantt timeline and Kanban board views over plain Markdown notes.**
 
@@ -16,6 +16,8 @@ English | [简体中文](README.zh-CN.md)
 <img width="1422" alt="dotpm dashboard" src="https://github.com/user-attachments/assets/ca6bc67f-e656-45be-b93a-17410555ec1a" />
 
 </div>
+
+ProjectMaster is a fork of [dotpm](https://github.com/dotpm/obsidian-pm). For the linked-note panel and enhanced Markdown editor, also install the [companion plugin](companion/dotpm-live-desc).
 
 Project tools keep the plan in one app and the thinking about it in another. dotpm keeps both in the vault. A project is a note, a task is a note, and the table, the timeline and the board are three ways of looking at the same files.
 

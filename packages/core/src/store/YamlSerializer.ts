@@ -42,6 +42,7 @@ export const TASK_FRONTMATTER_KEYS: ReadonlySet<string> = new Set([
   'id',
   'title',
   'description',
+  'pmSummary',
   'type',
   'status',
   'priority',
@@ -181,6 +182,7 @@ export function buildTaskFrontmatter(
     createdAt: task.createdAt,
     updatedAt: task.updatedAt
   }
+  if (task.summary?.trim()) fm.pmSummary = task.summary.trim()
   if (task.completed) fm.completed = task.completed
   if (task.recurrence) fm.recurrence = task.recurrence
   if (task.timeEstimate !== undefined) fm.timeEstimate = task.timeEstimate

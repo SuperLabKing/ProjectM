@@ -97,6 +97,7 @@ import type { ExportViewState } from '../export/snapshot'
 import { GanttView } from './gantt/GanttView'
 import { KanbanView } from './KanbanView'
 import { openTaskModal } from '#ui/ModalFactory'
+import { TaskDetailPanel } from './TaskDetailPanel'
 import { exportViewAsHtml } from '../export/exportView'
 import { collapsedTaskIds, setAllCollapsed } from './collapse'
 import { moveProjectRows, projectDropParent } from './projectHierarchy'
@@ -183,6 +184,7 @@ export class ProjectView extends ItemView {
   private projectTreeToggle: HTMLElement | null = null
   private projectTreeOpen = !Platform.isPhone
   private projectTreeKey: string | undefined
+  private taskDetails?: TaskDetailPanel
   private bodyEl!: HTMLElement
   private emptyEl!: HTMLElement
   private header: ViewHeader | null = null
@@ -295,7 +297,8 @@ export class ProjectView extends ItemView {
     return Promise.resolve()
   }
 
-  onClose(): Promise<void> {
+  async onClose(): Promise<void> {
+    await this.taskDetails?.close()
     this.subview?.destroy?.()
     this.subview = null
     this.header?.destroy()
@@ -331,6 +334,7 @@ export class ProjectView extends ItemView {
     const content = layout.createDiv('pm-project-task-main')
     this.bodyEl = content.createDiv('pm-content')
     this.emptyEl = content.createDiv('pm-filter-empty pm-hidden')
+    this.taskDetails = new TaskDetailPanel(layout, this.plugin, this.keyScope)
 
     this.register(
       this.plugin.store.onProjectChanged((path) => {
@@ -388,6 +392,8 @@ export class ProjectView extends ItemView {
     this.ensureInitialized()
     const spec = this.spec
     if (!spec) return
+    await this.taskDetails?.close()
+    if (this.spec !== spec) return
     if (spec.kind === 'project') this.anchorPath = spec.path
     const paths = resolveScopePaths(spec, this.plugin.index)
     this.loadedPaths = paths
@@ -1876,6 +1882,14 @@ export class ProjectView extends ItemView {
   }
 
   /** With several projects in view, a new task has to say which one it belongs to. */
+  openTaskDetails(project: Project, opts: Parameters<typeof openTaskModal>[2]): void {
+    if (opts.task) void this.taskDetails?.open(project, opts.task, opts.onSave)
+  }
+
+  openLinkedTaskDetails(project: Project, id: string, path: string): void {
+    void this.taskDetails?.openLinked(project, id, path, () => this.refreshProject())
+  }
+
   private addTask(anchor: HTMLElement, defaults?: Parameters<typeof openTaskModal>[2]['defaults']): void {
     const scope = this.projectScope
     if (!scope?.primary) return

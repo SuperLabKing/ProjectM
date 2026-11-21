@@ -23,6 +23,7 @@ import {
   renderMultiSelect,
   renderAddProperty,
   renderDepRow,
+  renderGlyph,
   type SelectItem,
   type HiddenProperty
 } from '@dotpm/ui'
@@ -39,6 +40,9 @@ export interface TaskFormFieldsContext {
   groupId: string | null
   groupInherited: boolean
   setGroupId: (id: string | null) => void
+  moreOpen: boolean
+  setMoreOpen: (open: boolean) => void
+  changed: () => void
   rerender: () => void
   shownExtras: Set<string>
   /** Leaves the editor for the task a dependency names. */
@@ -67,7 +71,13 @@ const repeatOptions = (): SelectItem[] => [
 export function renderTaskFormFields(container: HTMLElement, ctx: TaskFormFieldsContext): void {
   const { task, project, plugin, rerender, shownExtras } = ctx
   const { statuses, priorities, priorityIcons, customFields } = plugin.store.configFor(project)
-  const grid = container.createDiv('pm-prop-grid')
+  const essential = container.createDiv('pm-prop-grid pm-prop-grid--essential')
+  const more = container.createEl('details', { cls: 'pm-task-more-props' })
+  const heading = more.createEl('summary', { text: t('taskEditor.moreProperties') })
+  heading.prepend(createSpan({ cls: 'pm-task-more-chevron', text: '›' }))
+  more.open = ctx.moreOpen
+  more.addEventListener('toggle', () => ctx.setMoreOpen(more.open))
+  const grid = more.createDiv('pm-prop-grid')
 
   renderPropRow(
     grid,
@@ -129,7 +139,7 @@ export function renderTaskFormFields(container: HTMLElement, ctx: TaskFormFields
   }
 
   renderPropRow(
-    grid,
+    essential,
     t('taskForm.status'),
     () => {
       const cell = createDiv('pm-prop-value')
@@ -148,7 +158,7 @@ export function renderTaskFormFields(container: HTMLElement, ctx: TaskFormFields
   )
 
   renderPropRow(
-    grid,
+    essential,
     t('taskForm.priority'),
     () => {
       const cell = createDiv('pm-prop-value')
@@ -172,7 +182,7 @@ export function renderTaskFormFields(container: HTMLElement, ctx: TaskFormFields
   )
 
   renderPropRow(
-    grid,
+    essential,
     task.type === 'milestone' ? t('taskForm.date') : t('taskForm.due'),
     () => {
       const cell = createDiv('pm-prop-value')
@@ -230,9 +240,11 @@ export function renderTaskFormFields(container: HTMLElement, ctx: TaskFormFields
         selected: () => task.assignees,
         add: (value) => {
           if (!task.assignees.includes(value)) task.assignees.push(value)
+          ctx.changed()
         },
         remove: (value) => {
           task.assignees = task.assignees.filter((a) => a !== value)
+          ctx.changed()
         }
       })
       return cell
@@ -331,12 +343,15 @@ export function renderTaskFormFields(container: HTMLElement, ctx: TaskFormFields
         options: () => projectTags.map((tag) => ({ id: tag, label: tag })),
         add: (id) => {
           if (!task.tags.includes(id)) task.tags.push(id)
+          ctx.changed()
         },
         remove: (id) => {
           task.tags = task.tags.filter((tag) => tag !== id)
+          ctx.changed()
         },
         create: (label) => {
           if (!task.tags.includes(label)) task.tags.push(label)
+          ctx.changed()
         }
       })
       return cell
@@ -347,20 +362,25 @@ export function renderTaskFormFields(container: HTMLElement, ctx: TaskFormFields
 
   const groups = projectGroups(plugin, project)
   renderPropRow(
-    grid,
+    essential,
     t('taskGroups.field'),
     () => {
       const cell = createDiv('pm-prop-value')
       if (ctx.groupInherited || !groups.length) {
-        const label = groups.find((group) => group.id === ctx.groupId)?.name ?? t('taskGroups.ungrouped')
-        cell.createSpan({ text: label, attr: ctx.groupInherited ? { title: t('taskGroups.inherited') } : undefined })
+        const group = groups.find((entry) => entry.id === ctx.groupId)
+        const value = cell.createSpan({
+          cls: 'pm-task-group-readonly',
+          attr: ctx.groupInherited ? { title: t('taskGroups.inherited') } : undefined
+        })
+        renderGlyph(value, { icon: group ? group.icon || 'folder' : 'inbox' })
+        value.createSpan({ cls: 'pm-prop-inline-label', text: group?.name ?? t('taskGroups.ungrouped') })
       } else {
         renderSelectControl({
           container: cell,
           value: ctx.groupId ?? '',
           options: [
-            { id: '', label: t('taskGroups.ungrouped') },
-            ...groups.map(({ id, name }) => ({ id, label: name }))
+            { id: '', label: t('taskGroups.ungrouped'), icon: 'inbox' },
+            ...groups.map(({ id, name, icon }) => ({ id, label: name, icon: icon || 'folder' }))
           ],
           onChange: (id) => {
             ctx.setGroupId(id || null)
@@ -422,9 +442,11 @@ export function renderTaskFormFields(container: HTMLElement, ctx: TaskFormFields
           },
           add: (id) => {
             if (!task.dependencies.includes(id)) task.dependencies.push(id)
+            ctx.changed()
           },
           remove: (id) => {
             task.dependencies = task.dependencies.filter((d) => d !== id)
+            ctx.changed()
           }
         })
         return cell
@@ -476,7 +498,7 @@ export function renderTaskFormFields(container: HTMLElement, ctx: TaskFormFields
   }
 
   if (customFields.length > 0) {
-    const cfSection = container.createDiv('pm-modal-section')
+    const cfSection = more.createDiv('pm-modal-section')
     cfSection.createEl('h4', { text: t('settings.customFields.name'), cls: 'pm-modal-section-title' })
     const cfGrid = cfSection.createDiv('pm-prop-grid')
     for (const cf of customFields) {

@@ -26,8 +26,7 @@ export function renderTimeTrackingPanel(container: HTMLElement, task: Task): voi
   const logList = timeSection.createDiv('pm-time-log-list')
   const renderLogs = () => {
     logList.empty()
-    if (!task.timeLogs) task.timeLogs = []
-    const logs = task.timeLogs
+    const logs = task.timeLogs ?? []
     for (let i = 0; i < logs.length; i++) {
       const log = logs[i]
       const row = logList.createDiv('pm-time-log-row')

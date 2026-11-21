@@ -8,13 +8,13 @@ import { t } from '../i18n'
  * `subtasks` puts each subtask on a card of its own.
  */
 const BUILT_IN: Record<ViewMode, string[]> = {
-  table: ['title', 'project', 'status', 'priority', 'assignees', 'start', 'due', 'completed', 'progress', 'time'],
+  table: ['title', 'summary', 'project', 'status', 'priority', 'assignees', 'start', 'due', 'completed', 'progress', 'time'],
   kanban: ['priority', 'description', 'time', 'tags', 'progress', 'project', 'assignees', 'due', 'subtasks'],
   gantt: ['title', 'assignees', 'progress', 'dates', 'status', 'priority']
 }
 
 const HIDDEN_BY_DEFAULT: Record<ViewMode, ReadonlySet<string>> = {
-  table: new Set(),
+  table: new Set(['summary']),
   kanban: new Set(['description', 'subtasks']),
   gantt: new Set(['assignees', 'progress', 'dates', 'status', 'priority'])
 }
@@ -23,6 +23,7 @@ const HIDDEN_BY_DEFAULT: Record<ViewMode, ReadonlySet<string>> = {
 const CUSTOM_SHOWN_BY_DEFAULT: Record<ViewMode, boolean> = { table: true, kanban: false, gantt: false }
 
 export const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
+  summary: 240,
   project: 130,
   status: 130,
   priority: 110,
@@ -143,6 +144,8 @@ export function viewFieldLabel(id: string, customFields: CustomFieldDef[]): stri
       return t('columns.time')
     case 'tags':
       return t('taskForm.tags')
+    case 'summary':
+      return t('common.description')
     case 'description':
       return t('fields.description')
     case 'subtasks':

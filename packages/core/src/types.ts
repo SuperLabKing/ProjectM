@@ -61,7 +61,8 @@ export interface CustomFieldDef {
 export interface Task {
   id: string
   title: string
-  description: string
+  summary?: string // short task description in frontmatter
+  description: string // Markdown details from the note body
   type: TaskType // a milestone has zero duration
   status: TaskStatus
   priority: TaskPriority
@@ -410,7 +411,7 @@ export interface PMSettings {
   /** Moment-style tokens for every date label. Empty follows the interface language. */
   dateFormat: string
   saveTaskOnClose: boolean
-  taskEditorSurface: 'modal' | 'tab'
+  taskEditorSurface: 'modal' | 'tab' | 'panel'
   /** Key shortcut to create or save tasks and projects. */
   editorSaveModifier: 'Shift' | 'Mod'
   /** Where a project link lands: its overview page or its tasks in the default view. */
@@ -426,6 +427,7 @@ export interface PMSettings {
   collapsedTasks: Record<string, string[]>
   /** Display-only groups keyed by the stable project ID. */
   projectTaskGroups: Record<string, ProjectTaskGroup[]>
+  collapsedUngroupedProjects: string[]
   /** Paths of projects whose sub-projects are collapsed in the project list. */
   collapsedProjects: string[]
   /** Whether the project list shows archived projects. */
@@ -543,6 +545,7 @@ export const DEFAULT_SETTINGS: PMSettings = {
   scopeViews: {},
   collapsedTasks: {},
   projectTaskGroups: {},
+  collapsedUngroupedProjects: [],
   collapsedProjects: [],
   showArchivedProjects: false,
   projectList: makeDefaultProjectList(),

@@ -1,4 +1,5 @@
 import { type Task, t } from '@dotpm/core'
+import { setIcon } from '#platform'
 import { Chip } from '#primitives/Chip'
 import { IconButton } from '#primitives/IconButton'
 import { renderTagChip } from '../tagChip'
@@ -11,6 +12,7 @@ export interface TitleCellProps {
   treeGuides: boolean[] | null
   isLastChild: boolean
   showTagColors: boolean
+  onOpenNote?: () => void
   onTitleClick: () => void
   onTitleSave: (newTitle: string) => Promise<void>
   onAddSubtask: () => void
@@ -25,6 +27,20 @@ export class TitleCell {
     renderTreeGuides(this.el, props.treeGuides, props.isLastChild)
     const inner = this.el.createDiv('pm-table-title-inner')
 
+    const openLabel = t('linkedDetails.openNote')
+    const marker = props.onOpenNote
+      ? inner.createEl('button', {
+          cls: 'pm-task-note-mark',
+          type: 'button',
+          attr: { title: openLabel, 'aria-label': openLabel }
+        })
+      : inner.createSpan({ cls: 'pm-task-note-mark', attr: { title: t('common.task'), 'aria-hidden': 'true' } })
+    setIcon(marker, 'file-text')
+    marker.addEventListener('click', (event) => {
+      if (!props.onOpenNote) return
+      event.stopPropagation()
+      props.onOpenNote()
+    })
     const titleSpan = inner.createSpan({ text: task.title, cls: 'pm-task-title-text' })
     titleSpan.addEventListener('click', () => props.onTitleClick())
     titleSpan.addEventListener('dblclick', (e) => {

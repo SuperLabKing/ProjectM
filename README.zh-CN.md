@@ -1,6 +1,6 @@
 <div align="center">
 
-# dotpm
+# ProjectMaster
 
 **Obsidian 里的项目管理。用表格、甘特图时间线和看板管理纯 Markdown 笔记。**
 
@@ -16,6 +16,8 @@
 <img width="1422" alt="dotpm 仪表盘" src="https://github.com/user-attachments/assets/ca6bc67f-e656-45be-b93a-17410555ec1a" />
 
 </div>
+
+ProjectMaster 基于 [dotpm](https://github.com/dotpm/obsidian-pm)。使用关联笔记详情栏和 Markdown 增强编辑时，请同时安装[辅助插件](companion/dotpm-live-desc)。
 
 用项目管理工具时，计划在一个软件里，围绕计划的思考却在另一个软件里。dotpm 把这两样都放进你的仓库：一个项目就是一条笔记，一个任务也是一条笔记，而表格、时间线和看板，不过是看同一批文件的三个角度。
 
