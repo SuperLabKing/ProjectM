@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.8] - 2026-11-23
+
+- Install ProjectMaster with its own plugin ID (`projectmaster`) and update it from the ProjectM repository.
+- Preserve the original Obsidian header for compatibility with Hover Editor.
+
 ## [0.0.7] - 2026-11-21
 
 - Integrated live Markdown editing, date picking, checklist timing, and linked note controls into ProjectMaster.

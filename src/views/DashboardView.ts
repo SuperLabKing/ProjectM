@@ -68,7 +68,7 @@ const groupLabel = (group: ProjectGroupBy): string =>
 
 export class DashboardView extends ItemView {
   private plugin: PMPlugin
-  private headerEl!: HTMLElement
+  private headerMountEl!: HTMLElement
   private bodyEl!: HTMLElement
   private header: ViewHeader | null = null
   private searchBox: SearchBox | null = null
@@ -117,7 +117,7 @@ export class DashboardView extends ItemView {
     const root = this.contentEl
     root.empty()
     root.addClass('pm-root')
-    this.headerEl = root.createDiv('pm-vh-mount')
+    this.headerMountEl = root.createDiv('pm-vh-mount')
     this.bodyEl = root.createDiv('pm-content pm-project-list-container')
     // An untouched list opens with the starred view.
     const starred = this.plugin.settings.projectListViews.find((view) => view.isDefault)
@@ -156,7 +156,7 @@ export class DashboardView extends ItemView {
 
   private renderHeader(): void {
     this.header?.destroy()
-    const header = new ViewHeader(this.headerEl)
+    const header = new ViewHeader(this.headerMountEl)
     this.header = header
     renderBreadcrumb(header.context, {
       icon: 'library',

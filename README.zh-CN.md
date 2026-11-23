@@ -4,8 +4,7 @@
 
 **Obsidian 里的项目管理。用表格、甘特图时间线和看板管理纯 Markdown 笔记。**
 
-[![Obsidian community plugin](https://img.shields.io/badge/Obsidian-community%20plugin-7c3aed?logo=obsidian&logoColor=white)](https://obsidian.md/plugins?id=project-manager)
-[![Downloads](https://img.shields.io/github/downloads/dotpm/obsidian-pm/total?color=2ea44f)](https://github.com/dotpm/obsidian-pm/releases)
+[![Downloads](https://img.shields.io/github/downloads/SuperLabKing/ProjectM/total?color=2ea44f)](https://github.com/SuperLabKing/ProjectM/releases)
 [![License](https://img.shields.io/github/license/dotpm/obsidian-pm)](LICENSE)
 [![Donate](https://img.shields.io/badge/Donate-Buy%20me%20a%20coffee-ffdd00?logo=buy-me-a-coffee&logoColor=black)](https://www.buymeacoffee.com/kropachev)
 
@@ -29,22 +28,17 @@ ProjectMaster 基于 [dotpm](https://github.com/dotpm/obsidian-pm)，内置关�
 
 ## 安装
 
-在 Obsidian 中打开 **设置 > 第三方插件 > 浏览**，搜索 **dotpm**，安装后启用即可。也可以直接打开[插件页面](https://obsidian.md/plugins?id=project-manager)。
+需要 Obsidian 1.13 或更高版本，支持桌面端和移动端。
 
-需要 Obsidian 1.13 或更高版本，桌面端和移动端均可。
+**BRAT：**安装 [BRAT](https://github.com/TfTHacker/obsidian42-brat)，选择 **Add beta plugin**，填入 `SuperLabKing/ProjectM`。
 
-<details>
-<summary>测试版与手动安装</summary>
+**手动安装：**从[最新版本](https://github.com/SuperLabKing/ProjectM/releases/latest)下载 `main.js`、`manifest.json` 和 `styles.css`，放入 `<vault>/.obsidian/plugins/projectmaster/`，重新加载 Obsidian 后启用 ProjectMaster。
 
-**BRAT：**安装 [BRAT](https://github.com/TfTHacker/obsidian42-brat)，选择 **Add beta plugin**，填入 `dotpm/obsidian-pm`。
-
-**手动安装：**从[最新版本](https://github.com/dotpm/obsidian-pm/releases/latest)下载 `main.js`、`manifest.json` 和 `styles.css`，放到 `<vault>/.obsidian/plugins/project-manager/` 目录下，重新加载 Obsidian 后启用插件。
-
-</details>
+**从 ProjectMaster v0.0.7 或更早版本升级：**停用旧 ID `project-manager`。首次启用新版前，备份旧目录的 `data.json`，再复制到新目录 `projectmaster`。现有项目和任务笔记可原位读取。两个插件共用项目笔记和视图类型，请在同一个库里只启用其中一个。
 
 ## 快速上手
 
-1. 点击左侧栏的时间线图标，或者运行命令 **dotpm: 打开项目面板**。
+1. 点击左侧栏的时间线图标，或者运行命令 **ProjectMaster: 打开项目面板**。
 2. 点击 **新建项目**，起个名字，打开它。
 3. 点击 **添加任务**，按需填上状态、截止日期、负责人等信息。
 4. 在视图顶部的 **表格**、**时间线**、**看板** 之间随意切换。

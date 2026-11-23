@@ -4,8 +4,7 @@
 
 **Project management inside Obsidian. Table, Gantt timeline and Kanban board views over plain Markdown notes.**
 
-[![Obsidian community plugin](https://img.shields.io/badge/Obsidian-community%20plugin-7c3aed?logo=obsidian&logoColor=white)](https://obsidian.md/plugins?id=project-manager)
-[![Downloads](https://img.shields.io/github/downloads/dotpm/obsidian-pm/total?color=2ea44f)](https://github.com/dotpm/obsidian-pm/releases)
+[![Downloads](https://img.shields.io/github/downloads/SuperLabKing/ProjectM/total?color=2ea44f)](https://github.com/SuperLabKing/ProjectM/releases)
 [![License](https://img.shields.io/github/license/dotpm/obsidian-pm)](LICENSE)
 [![Donate](https://img.shields.io/badge/Donate-Buy%20me%20a%20coffee-ffdd00?logo=buy-me-a-coffee&logoColor=black)](https://www.buymeacoffee.com/kropachev)
 
@@ -29,22 +28,17 @@ Project tools keep the plan in one app and the thinking about it in another. dot
 
 ## Install
 
-In Obsidian, open **Settings > Community plugins > Browse**, search for **dotpm**, install and enable it. Or open [the listing](https://obsidian.md/plugins?id=project-manager) directly.
+ProjectMaster requires Obsidian 1.13 or newer. It works on desktop and mobile.
 
-Needs Obsidian 1.13 or newer. Works on desktop and mobile.
+**BRAT:** install [BRAT](https://github.com/TfTHacker/obsidian42-brat), choose **Add beta plugin** and enter `SuperLabKing/ProjectM`.
 
-<details>
-<summary>Beta builds and manual install</summary>
+**Manual:** download `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/SuperLabKing/ProjectM/releases/latest) into `<vault>/.obsidian/plugins/projectmaster/`, then reload Obsidian and enable ProjectMaster.
 
-**BRAT:** install [BRAT](https://github.com/TfTHacker/obsidian42-brat), choose **Add beta plugin** and enter `dotpm/obsidian-pm`.
-
-**Manual:** download `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/dotpm/obsidian-pm/releases/latest) into `<vault>/.obsidian/plugins/project-manager/`, then reload Obsidian and enable the plugin.
-
-</details>
+**Upgrading from ProjectMaster v0.0.7 or earlier:** disable the old `project-manager` plugin. Back up and copy its `data.json` to the new `projectmaster` directory before enabling ProjectMaster. Existing project and task notes stay in place. Enable one of these plugins per vault because they share the same project notes and view types.
 
 ## Quick start
 
-1. Click the timeline icon in the ribbon, or run **dotpm: Open projects pane**.
+1. Click the timeline icon in the ribbon, or run **ProjectMaster: Open projects pane**.
 2. Click **New project**, give it a name, and open it.
 3. Click **Add task**. Set a status, a due date, an assignee, whatever you need.
 4. Switch between **Table**, **Timeline** and **Board** from the last part of the path at the top of the view.

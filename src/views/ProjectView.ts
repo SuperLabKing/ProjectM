@@ -180,7 +180,7 @@ export class ProjectView extends ItemView {
   granularity: GanttGranularity
   private subview: SubView | null = null
   private editingTimeline = false
-  private headerEl!: HTMLElement
+  private headerMountEl!: HTMLElement
   private projectTreeEl!: HTMLElement
   private projectTreeResize!: HTMLElement
   private projectTreeToggle: HTMLElement | null = null
@@ -320,7 +320,7 @@ export class ProjectView extends ItemView {
     const root = this.contentEl
     root.empty()
     root.addClass('pm-root')
-    this.headerEl = root.createDiv('pm-vh-mount')
+    this.headerMountEl = root.createDiv('pm-vh-mount')
     const layout = root.createDiv('pm-project-task-layout').createDiv('pm-project-task-split')
     this.projectTreeEl = layout.createEl('nav', {
       cls: 'pm-project-tree',
@@ -388,7 +388,7 @@ export class ProjectView extends ItemView {
     refreshTabTitle(this.leaf)
     this.renderProjectTree()
     // Rebuilding the header would drop the caret out of the search box.
-    if (this.headerEl.contains(activeDocument.activeElement)) this.syncHeader()
+    if (this.headerMountEl.contains(activeDocument.activeElement)) this.syncHeader()
     else this.renderHeader()
     void this.refreshProject()
   }
@@ -548,7 +548,7 @@ export class ProjectView extends ItemView {
     this.header?.destroy()
     this.header = null
     this.filterBar = null
-    this.headerEl.empty()
+    this.headerMountEl.empty()
     this.bodyEl.empty()
     this.bodyEl.removeClass('pm-hidden')
     this.emptyEl.addClass('pm-hidden')
@@ -563,7 +563,7 @@ export class ProjectView extends ItemView {
     if (!scope || !primary) return
     this.header?.destroy()
     this.projectTreeToggle = null
-    const header = new ViewHeader(this.headerEl)
+    const header = new ViewHeader(this.headerMountEl)
     this.header = header
     this.renderContextSlot(header.context, scope, primary)
     this.renderViewSlot(header.view)

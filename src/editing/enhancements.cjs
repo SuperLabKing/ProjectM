@@ -1601,6 +1601,7 @@ class LinkedNotesTable {
 
 class EditingEnhancements {
   constructor(host, storage) {
+    this.owner = host;
     this.app = host.app;
     this.register = host.register.bind(host);
     this.registerEvent = host.registerEvent.bind(host);
@@ -1772,7 +1773,7 @@ class EditingEnhancements {
         const properties = metadataCache.getFileCache(project)?.frontmatter;
         if (!properties?.["pm-project"] || !linkedNoteRecords(properties).some(record => record.note === oldLink)) continue;
         const rename = records => records.map(record => record.note === oldLink ? { ...record, note: newLink } : record);
-        const store = this.app.plugins.plugins["project-manager"]?.store;
+        const store = this.owner.store;
         if (typeof store?.updateLinkedNotes === "function") {
           store.loadProjectByPath(project.path).then(current => {
             if (current) return store.updateLinkedNotes(current, rename);
@@ -1798,7 +1799,7 @@ class EditingEnhancements {
   }
 
   installDotpmProgressWrite() {
-    const store = this.app.plugins.plugins["project-manager"]?.store;
+    const store = this.owner.store;
     if (!store || this.progressWriteStore === store || typeof store.saveTaskFile !== "function") return;
     this.progressWriteStore = store;
     const saveTaskFile = store.saveTaskFile;
@@ -1825,7 +1826,7 @@ class EditingEnhancements {
   }
 
   installLinkedRollup() {
-    const store = this.app.plugins.plugins["project-manager"]?.store;
+    const store = this.owner.store;
     if (!store || typeof store.updateLinkedNotes === "function" ||
         this.linkedRollupStore === store || typeof store.doSaveProject !== "function") return;
     this.linkedRollupStore = store;
@@ -1893,11 +1894,11 @@ class EditingEnhancements {
 
   isLinkedRollupTask(file) {
     if (!file || !this.settings.enabled) return false;
-    const { vault, metadataCache, plugins } = this.app;
+    const { vault, metadataCache } = this.app;
     const properties = metadataCache.getFileCache(file)?.frontmatter;
     if (!properties?.["pm-task"] || typeof properties.projectId !== "string") return false;
     const ref = linkedNotePath(properties.projectId).split("|")[0];
-    const projectPath = plugins.plugins["project-manager"]?.index?.projectRefs()
+    const projectPath = this.owner.index.projectRefs()
       .find(project => project.id === properties.projectId)?.path;
     const project = ref ? metadataCache.getFirstLinkpathDest(ref, file.path) : projectPath && vault.getFileByPath(projectPath);
     if (!project) return false;
@@ -1916,7 +1917,7 @@ class EditingEnhancements {
       clearTimeout(timers.get(file));
       timers.set(file, setTimeout(async () => {
         timers.delete(file);
-        const store = this.app.plugins.plugins["project-manager"]?.store;
+        const store = this.owner.store;
         if (this.isLinkedRollupTask(file)) return;
         if (store?.peekSelfWrite?.(file.path)) {
           queue(file, (store.constructor.SELF_WRITE_WINDOW_MS || 5000) + 25);
@@ -2517,7 +2518,7 @@ class EmbeddedEditorBinding {
     if (taskPath) return this.app.vault.getFileByPath(taskPath);
     const projectTitle = surface?.querySelector(".pm-te-crumb-name")?.textContent.trim();
     if (!projectTitle) return null;
-    const projects = this.app.plugins.plugins["project-manager"]?.index?.projectRefs() || [];
+    const projects = this.plugin.owner.index.projectRefs();
     const matches = projects.filter(project => project.title === projectTitle);
     return matches.length === 1 ? this.app.vault.getFileByPath(matches[0].path) : null;
   }
