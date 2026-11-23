@@ -35,6 +35,7 @@ import { renderPersonPicker } from './ui/PersonPicker'
 import { generateToken } from './api/LocalApiServer'
 import { AgendaWindowPicker, listAgendaWindows } from './ui/agendaWindowCapture'
 import { glassValue, type GlassField } from './ui/agendaGlass'
+import { renderProjectMasterUpdate } from './ui/ProjectMasterUpdate'
 
 export type { PMSettings }
 export { DEFAULT_SETTINGS }
@@ -134,6 +135,10 @@ export class PMSettingTab extends PluginSettingTab {
               key: 'editorSaveModifier',
               options: { Shift: saveShortcutLabel('Shift'), Mod: saveShortcutLabel('Mod') }
             }
+          },
+          {
+            name: t('settings.update.name'),
+            render: (setting: Setting) => renderProjectMasterUpdate(setting, this.plugin)
           },
           {
             name: t('settings.showReleaseNotes.name'),

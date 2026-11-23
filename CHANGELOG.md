@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.9] - 2026-11-23
+
+- Added a ProjectMaster update check in Settings with version feedback, a BRAT update action for verified releases, and a link to GitHub for manual installation.
+
 ## [0.0.8] - 2026-11-23
 
 - Install ProjectMaster with its own plugin ID (`projectmaster`) and update it from the ProjectM repository.
