@@ -692,7 +692,8 @@
   "timeline.zoomOut": "縮小",
   "viewer.meta": "{tasks} · {date} {time} にエクスポート",
   "viewer.noSnapshot": "このページには読み取れるスナップショットがありません。",
-  "views.gantt": "タイムライン",
+  "views.gantt": "ガントチャート",
+  "views.timeline": "タイムライン",
   "views.kanban": "ボード",
   "views.overview": "概要",
   "views.table": "テーブル"

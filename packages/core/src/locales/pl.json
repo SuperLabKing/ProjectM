@@ -833,7 +833,8 @@
   "timeline.zoomOut": "Pomniejsz",
   "viewer.meta": "{tasks} · wyeksportowano {date} {time}",
   "viewer.noSnapshot": "Ta strona nie zawiera czytelnej migawki.",
-  "views.gantt": "Oś czasu",
+  "views.gantt": "Wykres Gantta",
+  "views.timeline": "Oś czasu",
   "views.kanban": "Tablica",
   "views.overview": "Przegląd",
   "views.table": "Tabela"

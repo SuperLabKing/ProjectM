@@ -786,7 +786,8 @@
   "timeline.zoomOut": "Zoom arrière",
   "viewer.meta": "{tasks} · exporté le {date} à {time}",
   "viewer.noSnapshot": "Cette page ne contient aucun instantané lisible.",
-  "views.gantt": "Chronologie",
+  "views.gantt": "Diagramme de Gantt",
+  "views.timeline": "Chronologie",
   "views.kanban": "Kanban",
   "views.overview": "Vue d'ensemble",
   "views.table": "Tableau"

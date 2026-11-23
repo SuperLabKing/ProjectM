@@ -786,7 +786,8 @@
   "timeline.zoomOut": "Diminuir zoom",
   "viewer.meta": "{tasks} · exportado em {date} {time}",
   "viewer.noSnapshot": "Esta página não contém uma captura legível.",
-  "views.gantt": "Linha do tempo",
+  "views.gantt": "Gráfico de Gantt",
+  "views.timeline": "Linha do tempo",
   "views.kanban": "Quadro",
   "views.overview": "Visão geral",
   "views.table": "Tabela"

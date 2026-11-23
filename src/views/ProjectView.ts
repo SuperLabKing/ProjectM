@@ -95,7 +95,8 @@ import type { SubView } from './SubView'
 import { TableView } from './table/TableView'
 import type { ExportViewState } from '../export/snapshot'
 import { GanttView } from './gantt/GanttView'
-import { TimelineWorkspaceView } from './gantt/TimelineWorkspaceView'
+import { ProjectTimelineView } from './gantt/ProjectTimelineView'
+import { WorkHistoryView } from './gantt/WorkHistoryView'
 import { KanbanView } from './KanbanView'
 import { openTaskModal } from '#ui/ModalFactory'
 import { TaskDetailPanel } from './TaskDetailPanel'
@@ -114,18 +115,19 @@ interface ProjectViewState {
   [key: string]: unknown
 }
 
-const MODES: ViewMode[] = ['table', 'gantt', 'kanban']
+const MODES: ViewMode[] = ['table', 'gantt', 'timeline', 'kanban']
 const PROJECT_TREE_WIDTH = { min: 152, initial: 210, max: 520 }
+const PROJECT_TREE_WIDTH_KEY = 'projectmaster-project-tree-width'
+const PROJECT_TREE_ROOT_EXPANDED = 'projectmaster-project-tree-root-expanded'
 
 interface ProjectTreePreferences {
   visible?: boolean
   width?: number
   branches?: Record<string, boolean>
 }
-const MODE_ICONS: Record<ViewMode, string> = { table: 'table', gantt: 'chart-gantt', kanban: 'kanban' }
+const MODE_ICONS: Record<ViewMode, string> = { table: 'table', gantt: 'chart-gantt', timeline: 'history', kanban: 'kanban' }
 const SCOPE_ICONS = { picked: 'layers', folder: 'folder', vault: 'vault' }
-const modeLabel = (mode: ViewMode): string =>
-  ({ table: t('views.table'), gantt: t('views.gantt'), kanban: t('views.kanban') })[mode]
+const modeLabel = (mode: ViewMode): string => t(`views.${mode}`)
 const granularityLabel = (granularity: GanttGranularity): string => t(`granularity.${granularity}`)
 
 function ends(list: { label: string }[]): [string, string] | undefined {
@@ -179,14 +181,13 @@ export class ProjectView extends ItemView {
   zoom = 100
   granularity: GanttGranularity
   private subview: SubView | null = null
-  private editingTimeline = false
+  private editingGantt = false
   private headerMountEl!: HTMLElement
   private projectTreeEl!: HTMLElement
   private projectTreeResize!: HTMLElement
   private projectTreeToggle: HTMLElement | null = null
   private projectTreeOpen = !Platform.isPhone
   private projectTreeKey: string | undefined
-  private projectTreeAnchorPath: string | undefined
   private taskDetails?: TaskDetailPanel
   private bodyEl!: HTMLElement
   private emptyEl!: HTMLElement
@@ -238,7 +239,8 @@ export class ProjectView extends ItemView {
   /** The mode, filter, sort and scale a reader of an export starts from. */
   exportState(): ExportViewState {
     return {
-      mode: this.currentView,
+      // HTML snapshots retain the existing schedule export for date-based views.
+      mode: this.currentView === 'timeline' ? 'gantt' : this.currentView,
       filter: structuredClone(this.query.filter),
       sort: this.currentView === 'table' && this.tableManualOrder ? [] : structuredClone(this.sort),
       group: structuredClone(this.group),
@@ -279,7 +281,7 @@ export class ProjectView extends ItemView {
     const spec = specOf(state)
     if (typeof state.anchor === 'string') this.anchorPath = state.anchor
     if (spec && (!this.spec || scopeKey(this.spec) !== scopeKey(spec))) {
-      this.editingTimeline = false
+      this.editingGantt = false
       this.spec = spec
       await this.loadScope()
     }
@@ -357,7 +359,9 @@ export class ProjectView extends ItemView {
           void this.loadScope()
         } else {
           this.renderProjectTree()
-          if (this.subview instanceof TimelineWorkspaceView) void this.refreshProject()
+          if (this.subview instanceof WorkHistoryView || this.subview instanceof ProjectTimelineView) {
+            void this.refreshProject()
+          }
         }
       })
     )
@@ -393,7 +397,7 @@ export class ProjectView extends ItemView {
     void this.refreshProject()
   }
 
-  private async loadScope(): Promise<void> {
+  private async loadScope(keepCurrentView = false, viewMode?: ViewMode): Promise<void> {
     this.ensureInitialized()
     const spec = this.spec
     if (!spec) return
@@ -409,11 +413,19 @@ export class ProjectView extends ItemView {
       this.renderEmptyScope()
       return
     }
-    if (this.defaultViewAppliedFor !== this.projectScope.key) {
+    const enteringScope = this.defaultViewAppliedFor !== this.projectScope.key
+    if (enteringScope) {
       this.defaultViewAppliedFor = this.projectScope.key
-      this.currentView = this.projectScope.config.defaultView
+      this.editingGantt = false
+      if (!keepCurrentView) this.currentView = this.projectScope.config.defaultView
     }
     this.loadFilterFromSettings()
+    if (viewMode) this.currentView = viewMode
+    else if (enteringScope) {
+      const key = this.projectTimeViewKey()
+      const remembered = key ? this.app.loadLocalStorage(key) : null
+      if (remembered === 'gantt' || remembered === 'timeline') this.currentView = remembered
+    }
     this.zoom = clampZoom(Number(this.app.loadLocalStorage(this.zoomKey())) || 100)
     this.queryBarOpen = countActiveFilters(this.query.filter) > 0
     refreshTabTitle(this.leaf)
@@ -422,20 +434,20 @@ export class ProjectView extends ItemView {
     this.renderCurrentView()
   }
 
-  private async switchScope(spec: ScopeSpec): Promise<void> {
+  private async switchScope(spec: ScopeSpec, keepCurrentView: boolean, viewMode?: ViewMode): Promise<void> {
     this.spec = spec
-    await this.loadScope()
+    await this.loadScope(keepCurrentView, viewMode)
     if (this.spec === spec) await this.leaf.setViewState({ type: PM_PROJECT_VIEW_TYPE, state: this.getState() })
   }
 
-  /** Moves this leaf to another scope in the same mode, or opens it in a new tab. */
-  private async goTo(spec: ScopeSpec, newTab: boolean): Promise<void> {
+  /** Opens the destination in the same leaf or a new tab. */
+  private async goTo(spec: ScopeSpec, newTab: boolean, fromProjectTree = false): Promise<void> {
     if (newTab) {
       await this.plugin.router.openScope(spec)
       return
     }
-    this.defaultViewAppliedFor = scopeKey(spec)
-    await this.switchScope(spec)
+    const keepCurrentView = fromProjectTree || this.currentView === 'table' || this.currentView === 'kanban'
+    await this.switchScope(spec, keepCurrentView, fromProjectTree ? this.currentView : undefined)
   }
 
   private loadFilterFromSettings(): void {
@@ -543,7 +555,6 @@ export class ProjectView extends ItemView {
   private renderEmptyScope(): void {
     this.projectTreeKey = undefined
     this.projectTreeEl.empty()
-    delete this.projectTreeEl.dataset.projectTreeView
     this.syncProjectTree()
     this.header?.destroy()
     this.header = null
@@ -621,7 +632,7 @@ export class ProjectView extends ItemView {
   /** Replaces a body the filter has emptied with a way back: the one condition that frees the most tasks. */
   private syncFilterEmpty(counts: { shown: number; total: number }): void {
     const scope = this.projectScope
-    const emptied = !this.timelineOverview && !!scope && isQueryActive(this.query) && counts.shown === 0 && counts.total > 0
+    const emptied = !this.usesOverviewLayout && !!scope && isQueryActive(this.query) && counts.shown === 0 && counts.total > 0
     this.emptyEl.empty()
     this.emptyEl.toggleClass('pm-hidden', !emptied)
     this.bodyEl.toggleClass('pm-hidden', emptied)
@@ -691,21 +702,21 @@ export class ProjectView extends ItemView {
         onOpen: (anchor: HTMLElement) => this.showModeMenu(anchor, scope, primary)
       }
     }
+    new IconButton(parent)
+      .setIcon('arrow-left')
+      .setTooltip(t('project.backToDashboard'))
+      .onClick(safeAsync(() => this.plugin.router.openDashboard(this.leaf)))
+    const treeToggle = new IconButton(parent)
+      .setIcon('panel-left')
+      .setTooltip(t('header.projectTree'))
+      .onClick(() => {
+        this.projectTreeOpen = !this.projectTreeOpen
+        this.saveProjectTreePreferences({ visible: this.projectTreeOpen })
+        this.syncProjectTree()
+      })
+    this.projectTreeToggle = treeToggle.el
+    this.syncProjectTree()
     if (kind === 'project' || kind === 'subtree') {
-      new IconButton(parent)
-        .setIcon('arrow-left')
-        .setTooltip(t('project.backToDashboard'))
-        .onClick(safeAsync(() => this.plugin.router.openDashboard(this.leaf)))
-      const treeToggle = new IconButton(parent)
-        .setIcon('panel-left')
-        .setTooltip(t('header.projectTree'))
-        .onClick(() => {
-          this.projectTreeOpen = !this.projectTreeOpen
-          this.saveProjectTreePreferences({ visible: this.projectTreeOpen })
-          this.syncProjectTree()
-        })
-      this.projectTreeToggle = treeToggle.el
-      this.syncProjectTree()
       renderBreadcrumb(parent, {
         ...common,
         icon: primary.icon,
@@ -759,9 +770,23 @@ export class ProjectView extends ItemView {
     )
   }
 
+  private projectTimeViewKey(): string | undefined {
+    const scope = this.projectScope
+    if (scope?.spec.kind !== 'project' && scope?.spec.kind !== 'subtree') return
+    const id = scope.primary?.id
+    return id ? `projectmaster-project-time-view:${id}` : undefined
+  }
+
+  private rememberProjectTimeView(mode: ViewMode): void {
+    if (mode !== 'gantt' && mode !== 'timeline') return
+    const key = this.projectTimeViewKey()
+    if (key) this.app.saveLocalStorage(key, mode)
+  }
+
   private switchMode(mode: ViewMode): void {
+    this.rememberProjectTimeView(mode)
     if (mode === this.currentView) return
-    this.editingTimeline = false
+    this.editingGantt = false
     this.currentView = mode
     this.renderHeader()
     this.renderCurrentView()
@@ -827,9 +852,22 @@ export class ProjectView extends ItemView {
         ...changes,
         branches: { ...saved.branches, ...changes.branches }
       }
-      if (preferences.width === undefined) delete preferences.width
-      this.app.saveLocalStorage(key, preferences)
+        this.app.saveLocalStorage(key, preferences)
     }
+  }
+
+  private savedProjectTreeWidth(): number {
+    const shared: unknown = this.app.loadLocalStorage(PROJECT_TREE_WIDTH_KEY)
+    if (typeof shared === 'number' && Number.isFinite(shared)) return shared
+    const legacy = this.projectTreePreferences().width
+    const width = typeof legacy === 'number' && Number.isFinite(legacy) ? legacy : PROJECT_TREE_WIDTH.initial
+    this.app.saveLocalStorage(PROJECT_TREE_WIDTH_KEY, width)
+    return width
+  }
+
+  private saveProjectTreeWidth(width: number): void {
+    this.setProjectTreeWidth(width)
+    this.app.saveLocalStorage(PROJECT_TREE_WIDTH_KEY, width)
   }
 
   private setProjectTreeWidth(width: number): void {
@@ -876,29 +914,26 @@ export class ProjectView extends ItemView {
       drag = undefined
       if (start.key !== this.projectTreeKey) return
       if (event.clientX === start.x) {
-        this.setProjectTreeWidth(this.projectTreePreferences().width ?? PROJECT_TREE_WIDTH.initial)
+        this.setProjectTreeWidth(this.savedProjectTreeWidth())
         return
       }
       const width = limit(start.width + (event.clientX - start.x) * direction())
-      this.setProjectTreeWidth(width)
-      this.saveProjectTreePreferences({ width })
+      this.saveProjectTreeWidth(width)
     })
     handle.addEventListener('lostpointercapture', () => {
       if (!drag) return
       drag = undefined
-      this.setProjectTreeWidth(this.projectTreePreferences().width ?? PROJECT_TREE_WIDTH.initial)
+      this.setProjectTreeWidth(this.savedProjectTreeWidth())
     })
     handle.addEventListener('dblclick', (event) => {
       if (event.button !== 0 || drag || !this.projectTreeKey) return
-      this.setProjectTreeWidth(PROJECT_TREE_WIDTH.initial)
-      this.saveProjectTreePreferences({ width: undefined })
+      this.saveProjectTreeWidth(PROJECT_TREE_WIDTH.initial)
     })
     handle.addEventListener('keydown', (event) => {
       if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
       event.preventDefault()
       const width = limit(currentWidth() + (event.key === 'ArrowLeft' ? -16 : 16) * direction())
-      this.setProjectTreeWidth(width)
-      this.saveProjectTreePreferences({ width })
+      this.saveProjectTreeWidth(width)
     })
   }
 
@@ -907,75 +942,43 @@ export class ProjectView extends ItemView {
     if (!nav) return
     const focused = nav.ownerDocument.activeElement
     const restoreFocus = nav.contains(focused)
-    const restoreScopeFocus = restoreFocus && focused?.hasAttribute('data-project-tree-scope')
     const spec = this.projectScope?.spec
     const index = this.plugin.index
-    const active = spec?.kind === 'project' ? index.projectRef(spec.path) : undefined
-    const ancestors = active ? index.ancestorRefs(active.path) : []
-    const previousAnchor = this.projectTreeAnchorPath ? index.projectRef(this.projectTreeAnchorPath) : null
-    const keepAll = previousAnchor && this.app.loadLocalStorage(`dotpm-project-tree-scope:${previousAnchor.id}`) === 'all'
-    const relatedAnchor = ancestors.find((ref) => ref.path === previousAnchor?.path)
-    const anchor = active
-      ? relatedAnchor ?? (keepAll ? previousAnchor : active)
-      : undefined
-    this.projectTreeAnchorPath = anchor?.path
-    const treeScopeKey = anchor ? `dotpm-project-tree-scope:${anchor.id}` : undefined
-    const treeScope = treeScopeKey && this.app.loadLocalStorage(treeScopeKey) === 'all' ? 'all' : 'current'
-    const treeView = anchor ? `${treeScope}:${anchor.id}` : undefined
-    const scrollTop = nav.dataset.projectTreeView === treeView ? nav.scrollTop : 0
-    const win = nav.ownerDocument.defaultView
-    const outgoing =
-      treeView &&
-      nav.dataset.projectTreeView &&
-      nav.dataset.projectTreeView !== treeView &&
-      !nav.hidden &&
-      win?.matchMedia('(prefers-reduced-motion: no-preference)').matches
-        ? nav.querySelector<HTMLUListElement>(':scope > .pm-project-tree-lists > ul:not(.pm-project-tree-outgoing)')
-        : null
-    const outgoingTop = outgoing?.getBoundingClientRect().top
-    const outgoingOpacity = outgoing && win?.getComputedStyle(outgoing).opacity
-    outgoing?.getAnimations().forEach((animation) => animation.cancel())
+    const primary = this.projectScope?.primary
+    const anchor = spec?.kind === 'project' ? spec.path : this.anchorPath
+    const active = (anchor ? index.projectRef(anchor) : undefined) ?? (primary && index.projectRef(primary.filePath))
+    const scrollTop = nav.scrollTop
+    const allSelected = spec?.kind === 'vault'
     nav.empty()
-    if (active && anchor) {
-      const root = index.ancestorRefs(anchor.path)[0] ?? anchor
+    if (active) {
+      const ancestors = index.ancestorRefs(active.path)
+      const root = ancestors[0] ?? active
       const parent = ancestors.at(-1)
-      const showAll = treeScope === 'all'
       const includeArchived = this.plugin.settings.showArchivedProjects || index.isArchived(active.path)
       const key = `dotpm-project-tree:${root.id}`
       if (this.projectTreeKey !== key) {
         this.projectTreeKey = key
         const preferences = this.projectTreePreferences()
         this.projectTreeOpen = preferences.visible ?? !Platform.isPhone
-        this.setProjectTreeWidth(preferences.width ?? PROJECT_TREE_WIDTH.initial)
+        this.setProjectTreeWidth(this.savedProjectTreeWidth())
       }
       const { branches } = this.projectTreePreferences()
-      const defaultExpanded = new Set([anchor.id, ...ancestors.map((ref) => ref.id)])
-      nav.createDiv({ cls: 'pm-project-tree-heading', text: t('header.projectTree') })
-      const scope = nav.createDiv({
-        cls: 'pm-project-tree-scope',
-        attr: { role: 'group', 'aria-label': t('header.projectTreeScope') }
-      })
-      for (const [mode, label] of [
-        ['current', t('header.projectTreeCurrentProject')],
-        ['all', t('header.projectTreeAllProjects')]
-      ] as const) {
-        const button = scope.createEl('button', {
-          text: label,
-          attr: {
-            type: 'button',
-            'aria-pressed': String(treeScope === mode),
-            'data-project-tree-scope': mode
-          }
-        })
-        button.addEventListener('click', () => {
-          if (treeScope === mode || !treeScopeKey) return
-          if (mode === 'current' && anchor.path !== active.path && !relatedAnchor) {
-            this.projectTreeAnchorPath = active.path
-            this.app.saveLocalStorage(`dotpm-project-tree-scope:${active.id}`, mode)
-          } else this.app.saveLocalStorage(treeScopeKey, mode)
-          this.renderProjectTree()
-        })
+      const defaultExpanded = new Set([active.id, ...ancestors.map((ref) => ref.id)])
+      const roots = index.orderedProjectRefs(index.rootRefs(includeArchived))
+      const selectProject = async (ref: ProjectRef): Promise<void> => {
+        const lineage = index.ancestorRefs(ref.path)
+        const parent = lineage.at(-1)
+        const peers = parent ? index.childRefs(parent.path, includeArchived) : roots
+        const branches = Object.fromEntries([
+          ...peers.map((peer) => [peer.id, false] as const),
+          ...[...lineage, ref].map((branch) => [branch.id, true] as const)
+        ])
+        this.saveProjectTreePreferences({ branches }, `dotpm-project-tree:${(lineage[0] ?? ref).id}`)
+        if (Platform.isPhone) this.projectTreeOpen = false
+        if (spec?.kind === 'project' && ref.path === spec.path) this.renderProjectTree()
+        else await this.goTo({ kind: 'project', path: ref.path }, false, true)
       }
+      nav.createDiv({ cls: 'pm-project-tree-heading', text: t('header.projectTree') })
       if (parent) {
         const back = nav.createEl('button', {
           cls: 'pm-project-tree-parent',
@@ -985,12 +988,29 @@ export class ProjectView extends ItemView {
         back.createSpan({ text: t('header.projectTreeBackToParent') })
         back.addEventListener(
           'click',
-          safeAsync(() => this.goTo({ kind: 'project', path: parent.path }, false))
+          safeAsync(() => selectProject(parent))
         )
       }
+      const list = nav.createEl('ul')
+      const allItem = list.createEl('li', { cls: 'pm-project-tree-root' })
+      const allRow = allItem.createDiv('pm-project-tree-row')
+      const rootFold = allRow.createEl('button', {
+        cls: 'clickable-icon pm-project-tree-fold',
+        attr: { type: 'button', 'aria-label': t('header.projectTreeToggleAll') }
+      })
+      const all = allRow.createEl('button', {
+        cls: 'pm-project-tree-project pm-project-tree-all',
+        attr: { type: 'button' }
+      })
+      if (allSelected) all.setAttribute('aria-current', 'page')
+      renderGlyph(all, { icon: 'layers' })
+      all.createSpan({ cls: 'pm-project-tree-name', text: t('header.projectTreeAllProjects') })
+      all.onclick = safeAsync(async () => {
+        if (!allSelected) await this.goTo({ kind: 'vault' }, false, true)
+      })
       const drag =
         this.plugin.settings.projectManualOrder !== false
-          ? this.projectTreeReorder(showAll ? undefined : anchor.path)
+          ? this.projectTreeReorder()
           : undefined
       const renderNode = (list: HTMLElement, ref: ProjectRef): void => {
         const children = index.childRefs(ref.path, includeArchived)
@@ -1001,14 +1021,13 @@ export class ProjectView extends ItemView {
           guide.createSvg('rect', { cls: 'pm-project-tree-guide-horizontal', attr: { y: '14', width: '14' } })
         }
         const row = item.createDiv('pm-project-tree-row')
-        const current = ref.path === active.path
+        const current = !allSelected && ref.path === (spec?.kind === 'project' ? spec.path : primary?.filePath)
         const branch = children.length
           ? row.createEl('button', {
               cls: 'clickable-icon pm-project-tree-fold',
               attr: { type: 'button', 'aria-label': ref.title }
             })
           : row.createSpan({ cls: 'pm-project-tree-fold', attr: { 'aria-hidden': 'true' } })
-        if (children.length) setIcon(branch, 'chevron-right')
         const link = row.createEl('button', {
           cls: 'pm-project-tree-project',
           attr: { type: 'button', title: ref.title }
@@ -1017,90 +1036,72 @@ export class ProjectView extends ItemView {
         if (current) link.setAttribute('aria-current', 'page')
         renderGlyph(link, { icon: ref.icon ?? 'folder', color: ref.color })
         link.createSpan({ cls: 'pm-project-tree-name', text: ref.title })
-        link.addEventListener(
-          'click',
-          safeAsync(async () => {
-            if (Platform.isPhone) {
-              this.projectTreeOpen = false
-              this.syncProjectTree()
-            }
-            if (!current) await this.goTo({ kind: 'project', path: ref.path }, false)
-          })
-        )
+        link.addEventListener('click', safeAsync(() => selectProject(ref)))
         if (!children.length) return
         const childList = item.createEl('ul')
-        let foldAnimation: Animation | undefined
-        const sync = (expanded: boolean, animate = false): void => {
-          branch.setAttribute('aria-expanded', String(expanded))
-          childList.inert = !expanded
-          if (!animate || nav.ownerDocument.defaultView?.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-            foldAnimation?.cancel()
-            foldAnimation = undefined
-            childList.hidden = !expanded
-            return
-          }
-          const from = childList.getBoundingClientRect().height
-          foldAnimation?.cancel()
-          childList.hidden = false
-          const to = expanded ? childList.getBoundingClientRect().height : 0
-          const animation = childList.animate(
-            [
-              { height: `${from}px`, overflow: 'clip' },
-              { height: `${to}px`, overflow: 'clip' }
-            ],
-            { duration: 225, easing: 'cubic-bezier(0.25, 0.8, 0.35, 1)' }
-          )
-          foldAnimation = animation
-          animation.addEventListener('finish', () => {
-            if (foldAnimation !== animation) return
-            foldAnimation = undefined
-            childList.hidden = !expanded
-          })
-        }
-        sync(branches?.[ref.id] ?? defaultExpanded.has(ref.id))
-        branch.addEventListener('click', () => {
-          const expanded = branch.getAttribute('aria-expanded') !== 'true'
+        this.bindProjectTreeBranch(branch, childList, branches?.[ref.id] ?? defaultExpanded.has(ref.id), (expanded) =>
           this.saveProjectTreePreferences({ branches: { [ref.id]: expanded } })
-          sync(expanded, true)
-        })
+        )
         for (const child of index.orderedProjectRefs(children)) renderNode(childList, child)
       }
-      const lists = nav.createDiv('pm-project-tree-lists')
-      const list = lists.createEl('ul')
-      nav.dataset.projectTreeView = treeView
-      const roots = showAll ? index.orderedProjectRefs(index.rootRefs(includeArchived)) : [anchor]
-      for (const ref of roots) renderNode(list, ref)
-      if (outgoing && outgoingTop !== undefined) {
-        const motion = { duration: 230, easing: 'cubic-bezier(0.25, 0.8, 0.35, 1)' }
-        const offset = outgoingTop - list.getBoundingClientRect().top
-        outgoing.inert = true
-        outgoing.setAttribute('aria-hidden', 'true')
-        outgoing.addClass('pm-project-tree-outgoing')
-        outgoing.style.insetBlockStart = `${offset}px`
-        lists.appendChild(outgoing)
-        const fade = outgoing.animate([{ opacity: outgoingOpacity || 1 }, { opacity: 0 }], { ...motion, duration: 155 })
-        fade.addEventListener('finish', () => outgoing.remove())
-        list.animate(
-          [
-            { opacity: 0.25, transform: 'translateY(3px)' },
-            { opacity: 1, transform: 'none' }
-          ],
-          motion
-        )
-      }
-    } else {
-      this.projectTreeKey = undefined
-      delete nav.dataset.projectTreeView
-    }
+      const projects = allItem.createEl('ul')
+      this.bindProjectTreeBranch(
+        rootFold,
+        projects,
+        this.app.loadLocalStorage(PROJECT_TREE_ROOT_EXPANDED) !== 'collapsed',
+        (expanded) => this.app.saveLocalStorage(PROJECT_TREE_ROOT_EXPANDED, expanded ? 'expanded' : 'collapsed')
+      )
+      for (const ref of roots) renderNode(projects, ref)
+    } else this.projectTreeKey = undefined
     this.syncProjectTree()
     nav.scrollTop = scrollTop
-    if (restoreFocus) {
-      const selector = restoreScopeFocus ? '[data-project-tree-scope][aria-pressed="true"]' : '[aria-current="page"]'
-      nav.querySelector<HTMLElement>(selector)?.focus({ preventScroll: true })
-    }
+    if (restoreFocus) nav.querySelector<HTMLElement>('[aria-current="page"]')?.focus({ preventScroll: true })
   }
 
-  private projectTreeReorder(scopeRoot?: string) {
+  private bindProjectTreeBranch(
+    branch: HTMLElement,
+    childList: HTMLUListElement,
+    initialExpanded: boolean,
+    save: (expanded: boolean) => void
+  ): void {
+    setIcon(branch, 'chevron-right')
+    let foldAnimation: Animation | undefined
+    const sync = (expanded: boolean, animate = false): void => {
+      branch.setAttribute('aria-expanded', String(expanded))
+      childList.inert = !expanded
+      if (!animate || branch.ownerDocument.defaultView?.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        foldAnimation?.cancel()
+        foldAnimation = undefined
+        childList.hidden = !expanded
+        return
+      }
+      const from = childList.getBoundingClientRect().height
+      foldAnimation?.cancel()
+      childList.hidden = false
+      const to = expanded ? childList.getBoundingClientRect().height : 0
+      const animation = childList.animate(
+        [
+          { height: `${from}px`, overflow: 'clip' },
+          { height: `${to}px`, overflow: 'clip' }
+        ],
+        { duration: 225, easing: 'cubic-bezier(0.25, 0.8, 0.35, 1)' }
+      )
+      foldAnimation = animation
+      animation.addEventListener('finish', () => {
+        if (foldAnimation !== animation) return
+        foldAnimation = undefined
+        childList.hidden = !expanded
+      })
+    }
+    sync(initialExpanded)
+    branch.addEventListener('click', () => {
+      const expanded = branch.getAttribute('aria-expanded') !== 'true'
+      save(expanded)
+      sync(expanded, true)
+    })
+  }
+
+  private projectTreeReorder() {
     let source: { ref: ProjectRef; link: HTMLButtonElement } | undefined
     let targetRow: HTMLElement | undefined
     const clearTarget = (): void => {
@@ -1119,14 +1120,9 @@ export class ProjectView extends ItemView {
         return offset < 0.27 ? 'before' : offset > 0.73 ? 'after' : 'inside'
       }
       const canDrop = (moving: string, position: TreeDrop): boolean =>
-        (ref.path !== scopeRoot || position === 'inside') &&
         projectDropParent(this.plugin, [moving], ref.path, position) !== undefined
-      link.draggable = ref.path !== scopeRoot
+      link.draggable = true
       link.addEventListener('dragstart', (event) => {
-        if (!link.draggable) {
-          event.preventDefault()
-          return
-        }
         if (!event.dataTransfer) return
         finish()
         source = { ref, link }
@@ -1231,7 +1227,7 @@ export class ProjectView extends ItemView {
     this.sortButton = null
     this.groupButton = null
     this.fieldsButton = null
-    if (this.currentView !== 'gantt') {
+    if (this.currentView === 'table' || this.currentView === 'kanban') {
       const sortButton = new ChipButton(parent).setAriaLabel(t('header.sort'))
       sortButton.onClick(() => this.openSort(sortButton.el))
       this.sortButton = sortButton
@@ -1241,7 +1237,7 @@ export class ProjectView extends ItemView {
       groupButton.onClick(() => this.openGroup(groupButton.el))
       this.groupButton = groupButton
     }
-    if (this.timelineOverview) return
+    if (this.usesOverviewLayout) return
     const fieldsButton = new ChipButton(parent)
       .setIcon('columns-3')
       .setLabel(t('header.fields'))
@@ -1368,7 +1364,7 @@ export class ProjectView extends ItemView {
         onOpen: () => this.openFilter()
       }
     ]
-    if (this.currentView !== 'gantt') {
+    if (this.currentView === 'table' || this.currentView === 'kanban') {
       query.push({
         icon: 'arrow-down-up',
         label: t('header.sort'),
@@ -1389,7 +1385,7 @@ export class ProjectView extends ItemView {
         onOpen: (anchor) => this.openGroup(anchor)
       })
     }
-    if (!this.timelineOverview) query.push({
+    if (!this.usesOverviewLayout) query.push({
       icon: 'columns-3',
       label: t('header.fields'),
       state: hidden ? tn('header.hiddenCount', hidden) : '',
@@ -1492,7 +1488,7 @@ export class ProjectView extends ItemView {
           )
       })
     }
-    if (this.currentView !== 'gantt') {
+    if (this.currentView === 'table' || this.currentView === 'kanban') {
       tabs.push({
         id: 'sort',
         label: t('header.sort'),
@@ -1509,7 +1505,7 @@ export class ProjectView extends ItemView {
         }
       })
     }
-    if (!this.timelineOverview) tabs.push({
+    if (!this.usesOverviewLayout) tabs.push({
       id: 'fields',
       label: t('header.fields'),
       render: (parent, changed) => {
@@ -1601,17 +1597,18 @@ export class ProjectView extends ItemView {
    */
   private viewOptions(scope: ProjectScope): (ViewOption | 'zoom')[] {
     const options: (ViewOption | 'zoom')[] = []
+    if (this.currentView === 'timeline') return options
     if (this.currentView === 'gantt') {
-      if (!this.editingTimeline) return options
+      if (!this.editingGantt) return options
       const mode: ViewOption = {
         id: 'timeline-mode',
         icon: 'chart-gantt',
-        label: t('workHistory.schedule'),
+        label: t('views.gantt'),
         chip: 'label',
         run: () => {
-          this.editingTimeline = false
+          this.editingGantt = false
           this.renderHeader()
-          this.renderCurrentView(true)
+          this.renderCurrentView()
         }
       }
       options.push(mode)
@@ -1654,8 +1651,8 @@ export class ProjectView extends ItemView {
     return options
   }
 
-  private get timelineOverview(): boolean {
-    return this.currentView === 'gantt' && !this.editingTimeline
+  private get usesOverviewLayout(): boolean {
+    return this.currentView === 'timeline' || (this.currentView === 'gantt' && !this.editingGantt)
   }
 
   private scrollToToday(): void {
@@ -1847,6 +1844,7 @@ export class ProjectView extends ItemView {
       const sv = this.savedViews().find((v) => v.id === id)
       if (!sv) return
       this.applySavedView(sv)
+      if (sv.viewMode) this.rememberProjectTimeView(sv.viewMode)
     }
     this.queryBarOpen = countActiveFilters(this.query.filter) > 0
     void this.persistFilter()
@@ -1958,10 +1956,11 @@ export class ProjectView extends ItemView {
     showMenuBelow(menu, anchor)
   }
 
-  private renderCurrentView(startWithSchedule = false): void {
+  private renderCurrentView(): void {
     const scope = this.projectScope
     if (!scope?.primary) return
 
+    const historyWeek = this.subview instanceof WorkHistoryView ? this.subview.weekOffset : 0
     let savedGanttScroll: ReturnType<GanttView['getScrollPosition']> | null = null
     let savedGanttLabelWidth: number | null = null
     if (this.currentView === 'gantt' && this.subview instanceof GanttView) {
@@ -1976,6 +1975,7 @@ export class ProjectView extends ItemView {
 
     this.subview?.destroy?.()
     this.bodyEl.empty()
+    this.bodyEl.removeClass('pm-gantt-view', 'pm-table-view', 'pm-kanban-view')
     this.subview = null
 
     switch (this.currentView) {
@@ -2002,18 +2002,20 @@ export class ProjectView extends ItemView {
         this.subview = table
         break
       }
+      case 'timeline':
+        this.subview = new WorkHistoryView(this.bodyEl, scope, this.plugin, this.query, historyWeek)
+        break
       case 'gantt': {
-        if (!this.editingTimeline) {
-          this.bodyEl.removeClass('pm-gantt-view', 'pm-table-view')
-          this.subview = new TimelineWorkspaceView(
-            this.bodyEl, scope, this.plugin, this.query,
-            () => {
-              this.editingTimeline = true
-              this.renderHeader()
-              this.renderCurrentView()
-            },
-            startWithSchedule
-          )
+        if (!this.editingGantt) {
+          this.bodyEl.createDiv('pm-timeline-edit').createEl('button', {
+            text: t('projectTimeline.editSchedule'),
+            attr: { type: 'button' }
+          }).onclick = () => {
+            this.editingGantt = true
+            this.renderHeader()
+            this.renderCurrentView()
+          }
+          this.subview = new ProjectTimelineView(this.bodyEl.createDiv(), scope, this.plugin, this.query)
           break
         }
         const gantt = new GanttView(

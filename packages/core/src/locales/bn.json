@@ -739,7 +739,8 @@
   "timeline.zoomOut": "জুম কমান",
   "viewer.meta": "{tasks} · এক্সপোর্ট: {date} {time}",
   "viewer.noSnapshot": "এই পেজে পড়ার মতো কোনো স্ন্যাপশট নেই।",
-  "views.gantt": "টাইমলাইন",
+  "views.gantt": "গ্যান্ট চার্ট",
+  "views.timeline": "টাইমলাইন",
   "views.kanban": "বোর্ড",
   "views.overview": "ওভারভিউ",
   "views.table": "টেবিল"

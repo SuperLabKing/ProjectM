@@ -786,7 +786,8 @@
   "timeline.zoomOut": "Micșorează",
   "viewer.meta": "{tasks} · exportat la {date} {time}",
   "viewer.noSnapshot": "Această pagină nu conține un instantaneu lizibil.",
-  "views.gantt": "Cronologie",
+  "views.gantt": "Diagramă Gantt",
+  "views.timeline": "Cronologie",
   "views.kanban": "Panou",
   "views.overview": "Rezumat",
   "views.table": "Tabel"

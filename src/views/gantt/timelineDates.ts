@@ -112,6 +112,15 @@ export function timelineChecklist(description: string): TimelineChecklistEntry[]
   return entries
 }
 
+/** Read dated checklists at their zero-based positions in the original Markdown file. */
+export function timelineNoteChecklist(markdown: string): (TimelineChecklistEntry & { text: string })[] {
+  const frontmatter = /^---[ \t]*\r?\n(?:[\s\S]*?\r?\n)?---[ \t]*(?:\r?\n|$)/.exec(markdown)?.[0] ?? ''
+  const offset = frontmatter.split(/\r?\n/).length - 1
+  const body = markdown.slice(frontmatter.length).replace(/(?:^|\r?\n)## Subtasks[ \t]*(?:\r?\n|$)[\s\S]*$/, '')
+  const lines = body.split(/\r?\n/)
+  return timelineChecklist(body).map((entry) => ({ ...entry, line: entry.line + offset, text: lines[entry.line] }))
+}
+
 function clockDate(line: string): AgendaDate | undefined {
   const epoch = Number(clockStart.exec(line)?.[1])
   if (!Number.isSafeInteger(epoch) || epoch <= 0 || epoch > 253_402_300_799_999) return undefined

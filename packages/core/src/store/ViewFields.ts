@@ -1,26 +1,28 @@
 import type { CustomFieldDef, FieldList, ViewFields, ViewMode } from '../types'
 import { t } from '../i18n'
 
+type FieldViewMode = Exclude<ViewMode, 'timeline'>
+
 /**
  * The built-in fields each presentation can show, in their default order: table columns,
  * what a board card carries, and the text beside a timeline bar. Custom fields follow as
  * `cf:<id>`. `project` exists only while a view covers several projects, and on a board
  * `subtasks` puts each subtask on a card of its own.
  */
-const BUILT_IN: Record<ViewMode, string[]> = {
+const BUILT_IN: Record<FieldViewMode, string[]> = {
   table: ['title', 'summary', 'project', 'status', 'priority', 'assignees', 'start', 'due', 'completed', 'progress', 'time'],
   kanban: ['priority', 'description', 'time', 'tags', 'progress', 'project', 'assignees', 'due', 'subtasks'],
   gantt: ['title', 'assignees', 'progress', 'dates', 'status', 'priority']
 }
 
-const HIDDEN_BY_DEFAULT: Record<ViewMode, ReadonlySet<string>> = {
+const HIDDEN_BY_DEFAULT: Record<FieldViewMode, ReadonlySet<string>> = {
   table: new Set(['summary']),
   kanban: new Set(['description', 'subtasks']),
   gantt: new Set(['assignees', 'progress', 'dates', 'status', 'priority'])
 }
 
 /** A table shows custom fields until told otherwise; a card or a bar label only once asked. */
-const CUSTOM_SHOWN_BY_DEFAULT: Record<ViewMode, boolean> = { table: true, kanban: false, gantt: false }
+const CUSTOM_SHOWN_BY_DEFAULT: Record<FieldViewMode, boolean> = { table: true, kanban: false, gantt: false }
 
 export const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
   summary: 240,
@@ -43,11 +45,13 @@ export interface FieldCatalog {
 }
 
 export function availableFields(mode: ViewMode, catalog: FieldCatalog): string[] {
+  if (mode === 'timeline') return []
   const builtIn = BUILT_IN[mode].filter((id) => id !== 'project' || catalog.multi)
   return [...builtIn, ...catalog.customFields.map((cf) => `cf:${cf.id}`)]
 }
 
 export function defaultFields(mode: ViewMode, catalog: FieldCatalog): string[] {
+  if (mode === 'timeline') return []
   return availableFields(mode, catalog).filter((id) =>
     id.startsWith('cf:') ? CUSTOM_SHOWN_BY_DEFAULT[mode] : !HIDDEN_BY_DEFAULT[mode].has(id)
   )

@@ -786,7 +786,8 @@
   "timeline.zoomOut": "Riduci zoom",
   "viewer.meta": "{tasks} · esportazione del {date} alle {time}",
   "viewer.noSnapshot": "Questa pagina non contiene un'istantanea leggibile.",
-  "views.gantt": "Timeline",
+  "views.gantt": "Diagramma di Gantt",
+  "views.timeline": "Timeline",
   "views.kanban": "Bacheca",
   "views.overview": "Panoramica",
   "views.table": "Tabella"

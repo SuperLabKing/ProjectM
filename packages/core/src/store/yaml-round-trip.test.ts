@@ -226,7 +226,7 @@ describe('project round-trip', () => {
     expect(project.description).toBe('From the note')
   })
 
-  it('preserves saved views with their filter, sort, mode, scale and star', () => {
+  it.each(['gantt', 'timeline'] as const)('preserves a saved %s view with its filter, sort, scale and star', (viewMode) => {
     const p = makeProject('P', 'Projects/P.md')
     const view: SavedView = {
       id: 'v1',
@@ -246,13 +246,15 @@ describe('project round-trip', () => {
         { key: 'title', dir: 'asc' }
       ],
       isDefault: true,
-      viewMode: 'gantt',
+      viewMode,
       ganttGranularity: 'month'
     }
     p.savedViews = [view]
+    p.config = { defaultView: viewMode }
 
     const { project } = roundTripProject(p)
     expect(project.savedViews).toEqual([view])
+    expect(project.config?.defaultView).toBe(viewMode)
   })
 
   it('keeps the open end of a between in place', () => {

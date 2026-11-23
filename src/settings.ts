@@ -4,6 +4,7 @@ import type PMPlugin from './main'
 import {
   type PMSettings,
   type AgendaNoticeEdge,
+  type WorkHistoryStatus,
   AGENDA_GLASS_PARAMS,
   AGENDA_SOURCE_FILTERS,
   DEFAULT_PALETTE_COLOR,
@@ -36,6 +37,7 @@ import { generateToken } from './api/LocalApiServer'
 import { AgendaWindowPicker, listAgendaWindows } from './ui/agendaWindowCapture'
 import { glassValue, type GlassField } from './ui/agendaGlass'
 import { renderProjectMasterUpdate } from './ui/ProjectMasterUpdate'
+import { workHistoryKinds, workHistoryStatusColor } from './views/gantt/workHistory'
 
 export type { PMSettings }
 export { DEFAULT_SETTINGS }
@@ -98,7 +100,12 @@ export class PMSettingTab extends PluginSettingTab {
             control: {
               type: 'dropdown',
               key: 'defaultView',
-              options: { table: t('views.table'), gantt: t('views.gantt'), kanban: t('views.kanban') }
+              options: {
+                table: t('views.table'),
+                gantt: t('views.gantt'),
+                timeline: t('views.timeline'),
+                kanban: t('views.kanban')
+              }
             }
           },
           {
@@ -152,6 +159,7 @@ export class PMSettingTab extends PluginSettingTab {
         type: 'group',
         heading: t('settings.style.heading'),
         items: [
+          this.workHistoryColorsPage(),
           {
             name: t('settings.showTagColors.name'),
             desc: t('settings.showTagColors.desc'),
@@ -759,6 +767,32 @@ export class PMSettingTab extends PluginSettingTab {
     const { added, updated } = countTaskNotesPaletteChanges(api, this.plugin.settings)
     const total = added + updated
     return total === 0 ? t('settings.taskNotes.upToDate') : tn('settings.changeCount', total)
+  }
+
+  private workHistoryColorsPage(): SettingDefinitionPage {
+    return {
+      type: 'page',
+      name: t('settings.workHistoryColors.name'),
+      desc: t('settings.workHistoryColors.desc'),
+      items: (Object.keys(workHistoryKinds) as WorkHistoryStatus[]).map((kind) => {
+        const name = t(workHistoryKinds[kind].label)
+        return {
+          name,
+          render: (setting: Setting) => {
+            const { settings } = this.plugin
+            const input = setting.controlEl.createEl('input', {
+              type: 'color',
+              value: workHistoryStatusColor(settings.workHistoryStatusColors, kind),
+              attr: { 'aria-label': name, 'data-pm-history-color': kind }
+            })
+            input.addEventListener('change', () => {
+              settings.workHistoryStatusColors = { ...settings.workHistoryStatusColors, [kind]: input.value }
+              this.persist()
+            })
+          }
+        }
+      })
+    }
   }
 
   private excludedFoldersPage(): SettingDefinitionPage {

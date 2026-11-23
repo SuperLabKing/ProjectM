@@ -833,7 +833,8 @@
   "timeline.zoomOut": "Уменьшить",
   "viewer.meta": "{tasks} · экспорт {date} в {time}",
   "viewer.noSnapshot": "На этой странице нет читаемого снимка.",
-  "views.gantt": "Хронология",
+  "views.gantt": "Диаграмма Ганта",
+  "views.timeline": "Хронология",
   "views.kanban": "Доска",
   "views.overview": "Обзор",
   "views.table": "Таблица"

@@ -786,7 +786,8 @@
   "timeline.zoomOut": "Alejar",
   "viewer.meta": "{tasks} · exportado el {date} a las {time}",
   "viewer.noSnapshot": "Esta página no contiene ninguna instantánea legible.",
-  "views.gantt": "Línea de tiempo",
+  "views.gantt": "Diagrama de Gantt",
+  "views.timeline": "Línea de tiempo",
   "views.kanban": "Tablero",
   "views.overview": "Resumen",
   "views.table": "Tabla"

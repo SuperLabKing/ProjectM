@@ -1,93 +1,75 @@
-import { agendaDate, type AgendaDate } from '../agendaEntries'
-import { datesOf, type TimelineChecklistEntry, type TimelineDates } from './timelineDates'
+import { DEFAULT_WORK_HISTORY_STATUS_COLORS, readColor, type PMSettings, type WorkHistoryStatus } from '@dotpm/core'
+import type { AgendaDate } from '../agendaEntries'
+import type { TimelineChecklistEntry } from './timelineDates'
 
-type HistoryKind = 'start' | 'completion' | 'cancellation' | 'hold' | 'planStart' | 'planEnd' | 'planRange'
+export const workHistoryKinds = {
+  start: { label: 'workHistory.started', icon: 'pause' },
+  completion: { label: 'projectTimeline.completed', icon: 'check' },
+  hold: { label: 'projectTimeline.held', icon: 'play' },
+  cancellation: { label: 'projectTimeline.cancelled', icon: 'x' }
+} as const satisfies Record<WorkHistoryStatus, { label: string; icon: string }>
+
+export function workHistoryStatusColor(colors: PMSettings['workHistoryStatusColors'], kind: WorkHistoryStatus): string {
+  return readColor(colors?.[kind]) ?? DEFAULT_WORK_HISTORY_STATUS_COLORS[kind]
+}
+
+export type HistoryLevel = 'project' | 'subproject' | 'task' | 'subtask'
+
+export interface HistorySource {
+  title: string
+  level: HistoryLevel
+}
+
+export interface ChecklistTarget {
+  path: string
+  taskId: string
+  line: number
+  text: string
+}
 
 export interface HistoryEvent {
-  sourceKey: string
   day: string
   time?: string
-  endTime?: string
+  sameDayStart?: AgendaDate
+  crossDay?: { start: AgendaDate; end: AgendaDate; endKind: Exclude<WorkHistoryStatus, 'start'> }
+  target?: ChecklistTarget
   title: string
-  project: string
-  task?: string
-  kind: HistoryKind
-  planned: boolean
-  children?: HistoryEvent[]
+  source: readonly HistorySource[]
+  kind: WorkHistoryStatus
 }
 
-export interface HistoryTask {
-  sourceKey: string
-  project: string
-  title: string
-  start: string
-  due: string
-  completed: string
-  cancelled: boolean
-  checklist: TimelineChecklistEntry[]
-}
-
-function collectEvents(
-  target: HistoryEvent[],
-  context: Pick<HistoryEvent, 'sourceKey' | 'title' | 'project' | 'task'>,
-  dates: TimelineDates,
-  planned: boolean
-): void {
-  const { start, end } = dates
-  const endKind = planned ? 'planEnd' : (dates.event ?? 'completion')
-  const record = (date: AgendaDate, kind: HistoryKind, endTime?: string) => {
-    target.push({ ...context, day: date.day, time: date.time, endTime, kind, planned })
-  }
-  if (start && end && start.day === end.day && start.time && end.time && start.time <= end.time) {
-    record(start, planned ? 'planRange' : endKind, end.time)
-    return
-  }
-  if (start) record(start, planned ? 'planStart' : 'start')
-  if (end) record(end, endKind)
-}
-
-export function historyEvents(task: HistoryTask): HistoryEvent[] {
+export function checklistHistoryEvents(
+  checklist: readonly (TimelineChecklistEntry & { text?: string })[],
+  source: readonly HistorySource[],
+  note?: Pick<ChecklistTarget, 'path' | 'taskId'>
+): HistoryEvent[] {
   const records: HistoryEvent[] = []
-  const context = { sourceKey: task.sourceKey, title: task.title, project: task.project }
-  collectEvents(records, context, datesOf(task.start, task.due), true)
-  const completion = agendaDate(task.completed)
-  if (completion) {
-    collectEvents(
-      records,
-      context,
-      {
-        end: completion,
-        event: task.cancelled ? 'cancellation' : 'completion'
-      },
-      false
-    )
-  }
-  const taskCompletion = records.find((item) => item.kind === 'completion')
-  for (const check of task.checklist) {
-    const checkContext = { ...context, title: check.title, task: task.title }
-    collectEvents(records, checkContext, check.plan, true)
-    const actual: HistoryEvent[] = []
-    collectEvents(actual, checkContext, check.actual, false)
-    for (const event of actual) {
-      if (event.kind === 'completion' && taskCompletion?.day === event.day) {
-        ;(taskCompletion.children ??= []).push(event)
-      } else {
-        records.push(event)
-      }
+  for (const check of checklist) {
+    const target = note && check.text !== undefined ? { ...note, line: check.line, text: check.text } : undefined
+    const context = { title: check.title, source, target }
+    const { start, end, event } = check.actual
+    const endKind = event ?? 'completion'
+    const sameDay = start && end && start.day === end.day
+    const crossDay = start && end && !sameDay ? { start, end, endKind } : undefined
+    if (start && !sameDay) {
+      records.push({ ...context, day: start.day, time: start.time, kind: 'start', crossDay })
+    }
+    if (end) {
+      const sameDayStart = sameDay ? start : undefined
+      records.push({ ...context, day: end.day, time: end.time, kind: endKind, sameDayStart, crossDay })
     }
   }
-  if (taskCompletion?.children) taskCompletion.children.sort(compareHistoryTime)
   return records
 }
 
 function compareHistoryTime(a: HistoryEvent, b: HistoryEvent): number {
-  return (a.time ?? '').localeCompare(b.time ?? '') || Number(a.planned) - Number(b.planned)
+  return (b.time ?? '').localeCompare(a.time ?? '')
 }
 
-export function historyDays(events: HistoryEvent[], first: string, last: string, includePlans: boolean) {
+export function historyDays(events: HistoryEvent[], first: string, last: string) {
   const days = new Map<string, HistoryEvent[]>()
   const ordered = events
-    .filter((event) => event.day >= first && event.day < last && (includePlans || !event.planned))
+    .filter((event) => event.day >= first && event.day < last)
     .sort((a, b) => b.day.localeCompare(a.day) || compareHistoryTime(a, b))
   for (const entry of ordered) {
     const list = days.get(entry.day) ?? []

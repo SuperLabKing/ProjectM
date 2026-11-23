@@ -80,7 +80,6 @@
 .pm-project-tree-resize:hover::before,
 .pm-project-tree-resize:focus-visible::before,
 .pm-project-tree-resize:active::before {
-  width: 2px;
   background: var(--interactive-accent);
 }
 
@@ -91,16 +90,6 @@
   font-weight: var(--font-semibold);
 }
 
-.pm-project-tree-scope {
-  display: flex;
-  gap: 2px;
-  margin-block-end: 6px;
-  padding: 2px;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-m);
-}
-
-.pm-project-tree .pm-project-tree-scope > button,
 .pm-project-tree button.pm-project-tree-parent {
   height: auto;
   min-height: 26px;
@@ -116,19 +105,9 @@
   cursor: pointer;
 }
 
-.pm-project-tree .pm-project-tree-scope > button {
-  flex: 1;
-}
-
-.pm-project-tree .pm-project-tree-scope > button:hover,
 .pm-project-tree button.pm-project-tree-parent:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
-}
-
-.pm-project-tree .pm-project-tree-scope > button[aria-pressed='true'] {
-  background: color-mix(in srgb, var(--interactive-accent) 13%, transparent);
-  color: var(--text-accent);
 }
 
 .pm-project-tree button.pm-project-tree-parent {
@@ -147,19 +126,17 @@
   list-style: none;
 }
 
-.pm-project-tree-lists {
-  position: relative;
-}
-
-.pm-project-tree-outgoing {
-  position: absolute;
-  inset-inline: 0;
-  pointer-events: none;
-}
-
 .pm-project-tree li > ul {
   margin-inline-start: 12px;
   padding-inline-start: 12px;
+}
+
+.pm-project-tree .pm-project-tree-root > .pm-project-tree-row {
+  margin-inline-start: -6px;
+}
+
+.pm-project-tree .pm-project-tree-root > ul {
+  margin-inline-start: 6px;
 }
 
 .pm-project-tree li > ul > li,

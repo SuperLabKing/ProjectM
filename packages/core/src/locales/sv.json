@@ -739,7 +739,8 @@
   "timeline.zoomOut": "Zooma ut",
   "viewer.meta": "{tasks} · exporterad {date} {time}",
   "viewer.noSnapshot": "Den här sidan innehåller ingen läsbar ögonblicksbild.",
-  "views.gantt": "Tidslinje",
+  "views.gantt": "Gantt-schema",
+  "views.timeline": "Tidslinje",
   "views.kanban": "Tavla",
   "views.overview": "Översikt",
   "views.table": "Tabell"

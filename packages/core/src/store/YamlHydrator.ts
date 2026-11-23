@@ -204,7 +204,9 @@ export function hydrateSavedViews(raw: unknown[]): SavedView[] {
       const v = r as Record<string, unknown>
       const viewMode = v.viewMode
       const validViewMode: ViewMode | undefined =
-        viewMode === 'table' || viewMode === 'gantt' || viewMode === 'kanban' ? viewMode : undefined
+        viewMode === 'table' || viewMode === 'gantt' || viewMode === 'timeline' || viewMode === 'kanban'
+          ? viewMode
+          : undefined
       const granularity = GANTT_GRANULARITIES.find((g) => g === v.ganttGranularity)
       return {
         id: (v.id as string) ?? '',
@@ -330,7 +332,7 @@ function hydrateProjectConfig(raw: unknown): ProjectConfig | undefined {
   }
   const hidden = stringList(r.hiddenCustomFields)
   if (hidden.length) config.hiddenCustomFields = hidden
-  if (r.defaultView === 'table' || r.defaultView === 'gantt' || r.defaultView === 'kanban') {
+  if (r.defaultView === 'table' || r.defaultView === 'gantt' || r.defaultView === 'timeline' || r.defaultView === 'kanban') {
     config.defaultView = r.defaultView
   }
   if (typeof r.autoSchedule === 'boolean') config.autoSchedule = r.autoSchedule

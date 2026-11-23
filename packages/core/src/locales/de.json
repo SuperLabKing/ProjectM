@@ -739,7 +739,8 @@
   "timeline.zoomOut": "Verkleinern",
   "viewer.meta": "{tasks} · exportiert am {date} um {time}",
   "viewer.noSnapshot": "Diese Seite enthält keinen lesbaren Snapshot.",
-  "views.gantt": "Zeitleiste",
+  "views.gantt": "Gantt-Diagramm",
+  "views.timeline": "Zeitleiste",
   "views.kanban": "Board",
   "views.overview": "Übersicht",
   "views.table": "Tabelle"

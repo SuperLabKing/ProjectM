@@ -6,7 +6,7 @@ export type TaskStatus = string
 export type TaskPriority = string
 export type GanttGranularity = 'day' | 'week' | 'month' | 'quarter' | 'year'
 export type GanttWeekLabel = 'weekNumber' | 'dateRange' | 'both'
-export type ViewMode = 'table' | 'gantt' | 'kanban'
+export type ViewMode = 'table' | 'gantt' | 'timeline' | 'kanban'
 export const GANTT_GRANULARITIES: GanttGranularity[] = ['day', 'week', 'month', 'quarter', 'year']
 export type LineBorders = 'none' | 'horizontal' | 'vertical' | 'both'
 export type DateBucket = 'overdue' | 'today' | 'this-week' | 'this-month'
@@ -377,6 +377,15 @@ export interface TableColumnAlignment {
   cell?: TableAlignment
 }
 
+export const DEFAULT_WORK_HISTORY_STATUS_COLORS = {
+  start: '#b47a20',
+  completion: '#4b9b71',
+  hold: '#bd5b66',
+  cancellation: '#6b7280'
+} as const
+
+export type WorkHistoryStatus = keyof typeof DEFAULT_WORK_HISTORY_STATUS_COLORS
+
 export interface PMSettings {
   /** Where new projects are created. Projects are discovered vault-wide, wherever they live. */
   projectsFolder: string
@@ -420,6 +429,7 @@ export interface PMSettings {
   saveTaskOnClose: boolean
   taskEditorSurface: 'modal' | 'tab' | 'panel'
   projectTimelineLayout: 'drilldown' | 'nested'
+  workHistoryStatusColors: Partial<Record<WorkHistoryStatus, string>>
   editingEnhancements?: Record<string, unknown>
   /** Key shortcut to create or save tasks and projects. */
   editorSaveModifier: 'Shift' | 'Mod'
@@ -548,6 +558,7 @@ export const DEFAULT_SETTINGS: PMSettings = {
   saveTaskOnClose: true,
   taskEditorSurface: 'modal',
   projectTimelineLayout: 'drilldown',
+  workHistoryStatusColors: {},
   editorSaveModifier: 'Shift',
   projectSurface: 'overview',
   projectTab: 'new',

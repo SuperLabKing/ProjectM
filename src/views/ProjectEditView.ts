@@ -391,6 +391,7 @@ export class ProjectEditView extends ItemView {
     row(t('settings.defaultView.name'), 'defaultView', [
       { value: 'table', label: t('views.table') },
       { value: 'gantt', label: t('views.gantt') },
+      { value: 'timeline', label: t('views.timeline') },
       { value: 'kanban', label: t('views.kanban') }
     ])
     row(
