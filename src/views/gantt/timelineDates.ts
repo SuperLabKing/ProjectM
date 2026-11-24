@@ -1,4 +1,4 @@
-import { Temporal } from '@dotpm/core'
+import { Temporal, type WorkHistoryStatus } from '@dotpm/core'
 import { agendaDate, readChecklistSchedule, type AgendaDate } from '../agendaEntries'
 
 export interface TimelineDates {
@@ -20,6 +20,13 @@ const stateMarks = {
   搁置: 'held',
   取消: 'cancelled'
 } as const
+const stateKinds = {
+  开始: 'start',
+  进行: 'start',
+  完成: 'completion',
+  搁置: 'hold',
+  取消: 'cancellation'
+} as const satisfies Record<keyof typeof stateMarks, WorkHistoryStatus>
 
 export function timelineDay(value: AgendaDate): number {
   const [hours, minutes] = (value.time ?? '0:0').split(':').map(Number)
@@ -36,6 +43,7 @@ export interface TimelineChecklistEntry {
   mark: 'todo' | 'active' | 'held' | 'done' | 'cancelled'
   plan: TimelineDates
   actual: TimelineDates
+  history: readonly { date: AgendaDate; kind: WorkHistoryStatus }[]
 }
 
 /** Read the same scheduled syntax as Agenda and the recorded editing timestamps. */
@@ -63,7 +71,7 @@ export function timelineChecklist(description: string): TimelineChecklistEntry[]
     const plain = body.replace(/<[^>]*>/g, '')
     const history = [...plain.matchAll(stateDate)].flatMap(([, label, value]) => {
       const date = agendaDate(value)
-      return date ? [{ label, date }] : []
+      return date ? [{ label: label as keyof typeof stateMarks, date }] : []
     })
     const marker = task[1].toLowerCase()
     const state = history[history.length - 1]?.label as keyof typeof stateMarks | undefined
@@ -106,7 +114,11 @@ export function timelineChecklist(description: string): TimelineChecklistEntry[]
     const stateAt = plain.search(stateDate)
     const title = schedule?.title ?? (stateAt < 0 ? plain : plain.slice(0, stateAt)).replace(/[\s*_~]+$/, '').trim()
     if (title && (schedule || actual.start || actual.end)) {
-      entries.push({ line, title, mark, plan: { start: schedule?.start, end: schedule?.due }, actual })
+      const states = history.map(({ label, date }) => ({ date, kind: stateKinds[label] }))
+      if (actual.start && !states.some(({ kind, date }) => kind === 'start' && date.day === actual.start?.day && date.time === actual.start.time)) {
+        states.push({ date: actual.start, kind: 'start' })
+      }
+      entries.push({ line, title, mark, plan: { start: schedule?.start, end: schedule?.due }, actual, history: states })
     }
   }
   return entries

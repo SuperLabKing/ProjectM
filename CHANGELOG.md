@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.11] - 2026-11-24
+
+- Link all retained cross-day records for the same checkbox and let users cycle through them, including across weeks.
+- Highlight related rows in pale purple on hover or keyboard focus.
+- Refine timeline status icons with a 13 px badge and a thinner in-progress glyph.
+- Add ascending and descending timeline order across dates and times, and remember the selected order.
+
 ## [0.0.9] - 2026-11-23
 
 - Added a ProjectMaster update check in Settings with version feedback, a BRAT update action for verified releases, and a link to GitHub for manual installation.

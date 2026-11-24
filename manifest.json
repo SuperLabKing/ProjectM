@@ -1,7 +1,7 @@
 {
   "id": "projectmaster",
   "name": "ProjectMaster",
-  "version": "0.0.9",
+  "version": "0.0.11",
   "minAppVersion": "1.13.0",
   "description": "Project management over plain Markdown notes. Table, Gantt and Kanban views with scheduling, dependencies and custom fields, plus a local API for agents and scripts.",
   "author": "SuperLabKing, dotpm contributors",

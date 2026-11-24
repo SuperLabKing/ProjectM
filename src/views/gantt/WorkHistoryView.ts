@@ -19,12 +19,17 @@ import { timelineChecklist, timelineNoteChecklist } from './timelineDates'
 import {
   checklistHistoryEvents,
   historyDays,
+  nextHistoryOccurrence,
   workHistoryKinds,
   workHistoryStatusColor,
   type ChecklistTarget,
   type HistoryEvent,
+  type HistoryOccurrence,
+  type HistorySortOrder,
   type HistorySource
 } from './workHistory'
+
+const SORT_ORDER_KEY = 'projectmaster-work-history-sort'
 
 const sourceIcons = {
   project: { icon: 'layers', label: 'common.project' },
@@ -53,7 +58,10 @@ export class WorkHistoryView implements SubView {
   private request = 0
   private readonly rangeLabel: HTMLElement
   private readonly log: HTMLElement
-  private readonly renderedRows = new Map<HistoryEvent, HTMLElement>()
+  private sortOrder: HistorySortOrder
+  private readonly renderedRows = new Map<HistoryOccurrence, HTMLElement>()
+  private hoveredRecord?: HistoryEvent['related']
+  private focusedRecord?: HistoryEvent['related']
   private calendar?: Popover
   private selectedDate?: Temporal.PlainDate
   private highlightedElement?: HTMLElement
@@ -66,6 +74,7 @@ export class WorkHistoryView implements SubView {
     private query: TaskQuery,
     public weekOffset = 0
   ) {
+    this.sortOrder = plugin.app.loadLocalStorage(SORT_ORDER_KEY) === 'asc' ? 'asc' : 'desc'
     const view = host.createDiv('pm-work-history')
     const controls = view.createDiv('pm-wh-toolbar')
     const period = controls.createDiv({
@@ -86,6 +95,18 @@ export class WorkHistoryView implements SubView {
       attr: { type: 'button', 'data-wh-today': '' }
     }).onclick = () => {
       this.weekOffset = 0
+      this.paint()
+    }
+    const sort = controls.createEl('select', {
+      cls: 'dropdown pm-wh-sort',
+      attr: { 'aria-label': t('workHistory.sortOrder') }
+    })
+    sort.createEl('option', { value: 'asc', text: t('workHistory.ascending') })
+    sort.createEl('option', { value: 'desc', text: t('workHistory.descending') })
+    sort.value = this.sortOrder
+    sort.onchange = () => {
+      this.sortOrder = sort.value === 'asc' ? 'asc' : 'desc'
+      plugin.app.saveLocalStorage(SORT_ORDER_KEY, this.sortOrder)
       this.paint()
     }
     this.log = view.createDiv('pm-wh-log')
@@ -191,13 +212,15 @@ export class WorkHistoryView implements SubView {
     const first = start.toString()
     this.rangeLabel.setText(formatDateShort(first) + ' – ' + formatDateShort(end.subtract({ days: 1 }).toString()))
     this.clearHighlight()
+    this.hoveredRecord = undefined
+    this.focusedRecord = undefined
     this.renderedRows.clear()
     this.log.empty()
     if (this.failed || !this.events) {
       this.empty(this.failed ? t('common.somethingWentWrong') : t('projectTimeline.loading'))
       return
     }
-    const days = historyDays(this.events, first, end.toString())
+    const days = historyDays(this.events, first, end.toString(), this.sortOrder)
     if (!days.size) this.empty(t('workHistory.emptyActual'))
     const weekday = new Intl.DateTimeFormat(locale(), { weekday: 'short', timeZone: 'UTC' })
     for (const [day, events] of days) {
@@ -221,20 +244,24 @@ export class WorkHistoryView implements SubView {
     const target = event.target
     const time = row.createDiv('pm-wh-time')
     time.createSpan({ cls: 'pm-wh-time-value', text: event.time ?? t('workHistory.dateOnly') })
-    if (event.crossDay) {
-      const later = event.kind === 'start'
-      const other = later ? event.crossDay.end : event.crossDay.start
-      const kind = later ? event.crossDay.endKind : 'start'
+    const link = event.related
+    if (link) {
+      const other = nextHistoryOccurrence(link)
+      const later = link.index < link.entries.length - 1
       const date = [formatDateShort(other.day), other.time].filter(Boolean).join(' ')
-      const label = t('workHistory.relatedEvent', { date, status: t(workHistoryKinds[kind].label) })
+      const label = t('workHistory.relatedEvent', { date, status: t(workHistoryKinds[other.kind].label) })
       const jump = time.createEl('button', {
         cls: 'pm-wh-related',
         attr: { type: 'button', 'aria-label': label }
       })
       setIcon(jump.createSpan({ attr: { 'aria-hidden': 'true' } }), later ? 'arrow-up-right' : 'arrow-down-left')
       setTooltip(jump, label)
-      jump.onclick = () => this.jumpToRelated(event)
-      this.renderedRows.set(event, row)
+      jump.onclick = () => this.jumpToRelated(link)
+      row.onpointerenter = () => this.setRelatedPreview('pointer', link)
+      row.onpointerleave = () => this.setRelatedPreview('pointer')
+      jump.onfocus = () => this.setRelatedPreview('focus', link)
+      jump.onblur = () => this.setRelatedPreview('focus')
+      this.renderedRows.set(link.entries[link.index], row)
     }
     const body = row.createDiv('pm-wh-event-body')
     const kind = workHistoryKinds[event.kind]
@@ -295,9 +322,18 @@ export class WorkHistoryView implements SubView {
     this.paint()
   }
 
-  private jumpToRelated(event: HistoryEvent): void {
-    const related = this.events?.find((item) => item !== event && item.crossDay === event.crossDay)
-    if (!related) return
+  private setRelatedPreview(source: 'pointer' | 'focus', link?: HistoryEvent['related']): void {
+    const previous = (this.hoveredRecord ?? this.focusedRecord)?.entries
+    if (source === 'pointer') this.hoveredRecord = link
+    else this.focusedRecord = link
+    const current = (this.hoveredRecord ?? this.focusedRecord)?.entries
+    if (current === previous) return
+    for (const entry of previous ?? []) this.renderedRows.get(entry)?.removeClass('pm-wh-related-preview')
+    for (const entry of current ?? []) this.renderedRows.get(entry)?.addClass('pm-wh-related-preview')
+  }
+
+  private jumpToRelated(link: NonNullable<HistoryEvent['related']>): void {
+    const related = nextHistoryOccurrence(link)
     this.showWeekOf(Temporal.PlainDate.from(related.day))
     const row = this.renderedRows.get(related)
     if (!row) return

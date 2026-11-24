@@ -153,10 +153,15 @@
   border-radius: 50%;
   background: var(--background-primary);
 }
-.pm-wh-related:is(:hover, :focus-visible) > span {
+.pm-wh-related:is(:hover, :focus-visible) > span,
+.pm-wh-related-preview .pm-wh-related > span {
   background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-primary));
 }
 .pm-wh-related svg { display: block; width: 15px; height: 15px; stroke-width: 2.5; }
+.pm-work-history .pm-wh-related-preview {
+  border-radius: var(--radius-s);
+  background-color: color-mix(in srgb, var(--color-purple, #8b5cf6) 12%, transparent);
+}
 .pm-work-history .pm-wh-jump-target {
   border-radius: var(--radius-s);
   background-color: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
@@ -173,20 +178,21 @@
 .pm-wh-title { min-width: 0; font-weight: var(--font-semibold); overflow-wrap: anywhere; }
 .pm-wh-kind {
   display: inline-flex;
-  margin-block-start: max(0px, calc((1lh - 16px) / 2));
+  margin-block-start: max(0px, calc((1lh - 13px) / 2));
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: 13px;
+  height: 13px;
   border-radius: 50%;
 }
-.pm-wh-kind svg { width: 11px; height: 11px; stroke-width: 2.6; }
+.pm-wh-kind svg { width: 7px; height: 7px; stroke-width: 2.6; }
 .pm-wh-kind svg:not(.lucide-pause) { stroke-width: 3.1; }
 .pm-wh-entry:is([data-history-kind='start'], [data-history-kind='hold']) .pm-wh-kind svg {
-  width: 9px;
-  height: 9px;
+  width: 6px;
+  height: 6px;
   fill: currentColor;
 }
+.pm-wh-entry[data-history-kind='start'] .pm-wh-kind svg { stroke-width: 1.5; }
 .pm-wh-source { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; margin-top: 2px; }
 .pm-wh-source-part { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; min-width: 0; }
 .pm-wh-source-name { overflow-wrap: anywhere; }

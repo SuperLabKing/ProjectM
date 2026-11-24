@@ -27,15 +27,22 @@ export interface ChecklistTarget {
   text: string
 }
 
-export interface HistoryEvent {
+export interface HistoryOccurrence {
   day: string
   time?: string
   sameDayStart?: AgendaDate
-  crossDay?: { start: AgendaDate; end: AgendaDate; endKind: Exclude<WorkHistoryStatus, 'start'> }
+  kind: WorkHistoryStatus
+}
+
+export interface HistoryEvent extends HistoryOccurrence {
+  related?: { entries: readonly HistoryOccurrence[]; index: number }
   target?: ChecklistTarget
   title: string
   source: readonly HistorySource[]
-  kind: WorkHistoryStatus
+}
+
+export function nextHistoryOccurrence({ entries, index }: NonNullable<HistoryEvent['related']>): HistoryOccurrence {
+  return entries[(index + 1) % entries.length]
 }
 
 export function checklistHistoryEvents(
@@ -46,31 +53,46 @@ export function checklistHistoryEvents(
   const records: HistoryEvent[] = []
   for (const check of checklist) {
     const target = note && check.text !== undefined ? { ...note, line: check.line, text: check.text } : undefined
-    const context = { title: check.title, source, target }
-    const { start, end, event } = check.actual
-    const endKind = event ?? 'completion'
-    const sameDay = start && end && start.day === end.day
-    const crossDay = start && end && !sameDay ? { start, end, endKind } : undefined
-    if (start && !sameDay) {
-      records.push({ ...context, day: start.day, time: start.time, kind: 'start', crossDay })
+    const timeKey = ({ date, kind }: (typeof check.history)[number]) =>
+      date.time ?? (kind === 'start' ? '' : '24:00')
+    const stamps = [...check.history].sort((a, b) =>
+      a.date.day.localeCompare(b.date.day) || timeKey(a).localeCompare(timeKey(b))
+    )
+    const entries: HistoryOccurrence[] = []
+    const seen = new Set<string>()
+    for (const { date, kind } of stamps) {
+      const key = `${date.day}/${date.time ?? ''}/${kind}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      const previous = entries.at(-1)
+      let sameDayStart: AgendaDate | undefined
+      if (kind !== 'start' && previous?.kind === 'start' && previous.day === date.day) {
+        sameDayStart = { day: previous.day, time: previous.time }
+        entries.pop()
+      }
+      entries.push({ ...date, kind, sameDayStart })
     }
-    if (end) {
-      const sameDayStart = sameDay ? start : undefined
-      records.push({ ...context, day: end.day, time: end.time, kind: endKind, sameDayStart, crossDay })
-    }
+    const crossDay = entries[0]?.day !== entries.at(-1)?.day
+    entries.forEach((entry, index) => records.push({
+      ...entry, title: check.title, source, target, related: crossDay ? { entries, index } : undefined
+    }))
   }
   return records
 }
 
-function compareHistoryTime(a: HistoryEvent, b: HistoryEvent): number {
-  return (b.time ?? '').localeCompare(a.time ?? '')
-}
+export type HistorySortOrder = 'asc' | 'desc'
 
-export function historyDays(events: HistoryEvent[], first: string, last: string) {
+export function historyDays(events: readonly HistoryEvent[], first: string, last: string, order: HistorySortOrder = 'desc') {
   const days = new Map<string, HistoryEvent[]>()
+  const direction = order === 'asc' ? 1 : -1
   const ordered = events
     .filter((event) => event.day >= first && event.day < last)
-    .sort((a, b) => b.day.localeCompare(a.day) || compareHistoryTime(a, b))
+    .sort((a, b) => {
+      const day = a.day.localeCompare(b.day)
+      if (day) return day * direction
+      if (!a.time || !b.time) return Number(!a.time) - Number(!b.time)
+      return a.time.localeCompare(b.time) * direction
+    })
   for (const entry of ordered) {
     const list = days.get(entry.day) ?? []
     list.push(entry)
