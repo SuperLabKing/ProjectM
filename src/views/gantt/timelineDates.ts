@@ -1,4 +1,4 @@
-import { Temporal, type WorkHistoryStatus } from '@dotpm/core'
+import { Temporal } from '@dotpm/core'
 import { agendaDate, readChecklistSchedule, type AgendaDate } from '../agendaEntries'
 
 export interface TimelineDates {
@@ -12,7 +12,7 @@ const checklist = /^\s*(?:>\s*)*(?:[-*+]|\d+[.)])\s+\[([ /xXcC~-])\]\s*(.*)$/
 const timestamp = '(\\d{4}-\\d{2}-\\d{2}(?:[ T]\\d{2}:\\d{2})?)'
 const stateDate = new RegExp('(开始|进行|完成|搁置|取消)\\s*@\\s*' + timestamp, 'g')
 const recordedStart = new RegExp('data-pm-start="' + timestamp + '"|始于\\s*@\\s*' + timestamp, 'g')
-const clockStart = /%%dotpm-clock:\d+,\d+,(\d+)(?:,auto-(?:cancel|hold))?%%/
+const clockStart = /%%dotpm-clock:\d+,\d+,(\d+)(?:,auto-(?:start|done|cancel|hold)(?:,manual)?)?%%/
 const stateMarks = {
   开始: 'active',
   进行: 'active',
@@ -20,13 +20,6 @@ const stateMarks = {
   搁置: 'held',
   取消: 'cancelled'
 } as const
-const stateKinds = {
-  开始: 'start',
-  进行: 'start',
-  完成: 'completion',
-  搁置: 'hold',
-  取消: 'cancellation'
-} as const satisfies Record<keyof typeof stateMarks, WorkHistoryStatus>
 
 export function timelineDay(value: AgendaDate): number {
   const [hours, minutes] = (value.time ?? '0:0').split(':').map(Number)
@@ -43,14 +36,61 @@ export interface TimelineChecklistEntry {
   mark: 'todo' | 'active' | 'held' | 'done' | 'cancelled'
   plan: TimelineDates
   actual: TimelineDates
-  history: readonly { date: AgendaDate; kind: WorkHistoryStatus }[]
+  details?: string
+}
+
+function readChecklistDetails(lines: string[], line: number): string | undefined {
+  const [, quotes, prefix] = /^((?:[ \t]*>[ \t]?)*)([ \t]*(?:[-*+]|\d+[.)])[ \t]+)/.exec(lines[line]) ?? []
+  if (!prefix) return undefined
+  const quoteDepth = quotes.replace(/[^>]/g, '').length
+  const columns = (text: string) => [...text].reduce((width, char) => char === '\t' ? width + 4 - width % 4 : width + 1, 0)
+  const required = columns(prefix)
+  const details: string[] = []
+  let childIndent: number | undefined
+  let fence: string | undefined
+  for (let index = line + 1; index < lines.length; index++) {
+    let text = lines[index]
+    for (let depth = 0; depth < quoteDepth; depth++) {
+      const marker = /^[ \t]*>[ \t]?/.exec(text)
+      if (!marker) return meaningfulDetails(details)
+      text = text.slice(marker[0].length)
+    }
+    if (!text.trim()) {
+      if (childIndent === undefined) details.push('')
+      continue
+    }
+    const spaces = /^[ \t]*/.exec(text)![0]
+    const indent = columns(spaces)
+    if (indent < required) break
+    if (childIndent !== undefined && indent > childIndent) continue
+    childIndent = undefined
+    const content = ' '.repeat(indent - required) + text.slice(spaces.length)
+    if (!fence && checklist.test(content)) {
+      // Child checkboxes have their own review records.
+      childIndent = indent
+      continue
+    }
+    const boundary = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(content)
+    if (boundary) {
+      if (!fence) fence = boundary[1]
+      else if (fence[0] === boundary[1][0] && boundary[1].length >= fence.length && !boundary[2].trim()) fence = undefined
+    }
+    details.push(content)
+  }
+  return meaningfulDetails(details)
+}
+
+function meaningfulDetails(lines: string[]): string | undefined {
+  const markdown = lines.join('\n').replace(/^\n+|\n+$/g, '')
+  return markdown.replace(/%%[\s\S]*?%%|<!--[\s\S]*?-->/g, '').trim() ? markdown : undefined
 }
 
 /** Read the same scheduled syntax as Agenda and the recorded editing timestamps. */
 export function timelineChecklist(description: string): TimelineChecklistEntry[] {
   const entries: TimelineChecklistEntry[] = []
+  const lines = description.split(/\r?\n/)
   let fence: string | undefined
-  for (const [line, source] of description.split(/\r?\n/).entries()) {
+  for (const [line, source] of lines.entries()) {
     const delimiter = /^\s*(?:>\s*)*(`{3,}|~{3,})(.*)$/.exec(source)
     if (delimiter && !fence) {
       fence = delimiter[1]
@@ -114,11 +154,8 @@ export function timelineChecklist(description: string): TimelineChecklistEntry[]
     const stateAt = plain.search(stateDate)
     const title = schedule?.title ?? (stateAt < 0 ? plain : plain.slice(0, stateAt)).replace(/[\s*_~]+$/, '').trim()
     if (title && (schedule || actual.start || actual.end)) {
-      const states = history.map(({ label, date }) => ({ date, kind: stateKinds[label] }))
-      if (actual.start && !states.some(({ kind, date }) => kind === 'start' && date.day === actual.start?.day && date.time === actual.start.time)) {
-        states.push({ date: actual.start, kind: 'start' })
-      }
-      entries.push({ line, title, mark, plan: { start: schedule?.start, end: schedule?.due }, actual, history: states })
+      const details = actual.end || actual.ongoing ? readChecklistDetails(lines, line) : undefined
+      entries.push({ line, title, mark, plan: { start: schedule?.start, end: schedule?.due }, actual, details })
     }
   }
   return entries

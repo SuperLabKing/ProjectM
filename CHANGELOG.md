@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.14] - 2026-11-25
+
+- Rename the Timeline view to Work review.
+- Open read-only checklist notes, images, and links in a resizable right pane that remembers its width and refreshes when the source changes.
+- Open the source checkbox from the link at the end of its review row, with the cursor at the end of the checkbox line.
+- Show one record per checkbox. In-progress items appear on their first start date. Completion, cancellation, and hold move the record to the status date and retain the first start as context.
+
 ## [0.0.13] - 2026-11-25
 
 - Smooth task details transitions by skipping repeated row measurements during width changes and resizing the description after the animation settles.

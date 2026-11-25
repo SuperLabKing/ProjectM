@@ -3,7 +3,7 @@ import type { AgendaDate } from '../agendaEntries'
 import type { TimelineChecklistEntry } from './timelineDates'
 
 export const workHistoryKinds = {
-  start: { label: 'workHistory.started', icon: 'pause' },
+  start: { label: 'status.inProgress', icon: 'pause' },
   completion: { label: 'projectTimeline.completed', icon: 'check' },
   hold: { label: 'projectTimeline.held', icon: 'play' },
   cancellation: { label: 'projectTimeline.cancelled', icon: 'x' }
@@ -27,55 +27,32 @@ export interface ChecklistTarget {
   text: string
 }
 
-export interface HistoryOccurrence {
+export interface HistoryEvent {
   day: string
   time?: string
-  sameDayStart?: AgendaDate
+  firstStart?: AgendaDate
   kind: WorkHistoryStatus
-}
-
-export interface HistoryEvent extends HistoryOccurrence {
-  related?: { entries: readonly HistoryOccurrence[]; index: number }
   target?: ChecklistTarget
+  details?: { markdown: string; sourcePath: string }
   title: string
   source: readonly HistorySource[]
-}
-
-export function nextHistoryOccurrence({ entries, index }: NonNullable<HistoryEvent['related']>): HistoryOccurrence {
-  return entries[(index + 1) % entries.length]
 }
 
 export function checklistHistoryEvents(
   checklist: readonly (TimelineChecklistEntry & { text?: string })[],
   source: readonly HistorySource[],
-  note?: Pick<ChecklistTarget, 'path' | 'taskId'>
+  note?: Pick<ChecklistTarget, 'path' | 'taskId'>,
+  sourcePath = note?.path ?? ''
 ): HistoryEvent[] {
   const records: HistoryEvent[] = []
   for (const check of checklist) {
+    const { start, end, ongoing, event } = check.actual
+    const date = ongoing ? start : end
+    const kind = ongoing ? 'start' : event
+    if (!date || !kind) continue
     const target = note && check.text !== undefined ? { ...note, line: check.line, text: check.text } : undefined
-    const timeKey = ({ date, kind }: (typeof check.history)[number]) =>
-      date.time ?? (kind === 'start' ? '' : '24:00')
-    const stamps = [...check.history].sort((a, b) =>
-      a.date.day.localeCompare(b.date.day) || timeKey(a).localeCompare(timeKey(b))
-    )
-    const entries: HistoryOccurrence[] = []
-    const seen = new Set<string>()
-    for (const { date, kind } of stamps) {
-      const key = `${date.day}/${date.time ?? ''}/${kind}`
-      if (seen.has(key)) continue
-      seen.add(key)
-      const previous = entries.at(-1)
-      let sameDayStart: AgendaDate | undefined
-      if (kind !== 'start' && previous?.kind === 'start' && previous.day === date.day) {
-        sameDayStart = { day: previous.day, time: previous.time }
-        entries.pop()
-      }
-      entries.push({ ...date, kind, sameDayStart })
-    }
-    const crossDay = entries[0]?.day !== entries.at(-1)?.day
-    entries.forEach((entry, index) => records.push({
-      ...entry, title: check.title, source, target, related: crossDay ? { entries, index } : undefined
-    }))
+    const details = check.details ? { markdown: check.details, sourcePath } : undefined
+    records.push({ ...date, kind, firstStart: ongoing ? undefined : start, title: check.title, source, target, details })
   }
   return records
 }

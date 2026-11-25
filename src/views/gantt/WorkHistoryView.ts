@@ -1,9 +1,10 @@
-import { setIcon, setTooltip } from 'obsidian'
+import { Component, Keymap, MarkdownRenderer, setIcon, setTooltip } from 'obsidian'
 import type PMPlugin from '#main'
 import { personKeyer, ProjectScope } from '#store'
 import {
   applyTaskFilterFlat,
   flattenTasks,
+  formatDate,
   formatDateShort,
   locale,
   t,
@@ -15,21 +16,36 @@ import { safeAsync, type Popover } from '@dotpm/ui'
 import { openAgendaItem } from '../../ui/agendaNavigation'
 import type { SubView } from '../SubView'
 import { openWorkHistoryCalendar } from './WorkHistoryCalendar'
+import { attachWorkHistoryDetailResize } from './WorkHistoryDetailResize'
 import { timelineChecklist, timelineNoteChecklist } from './timelineDates'
 import {
   checklistHistoryEvents,
   historyDays,
-  nextHistoryOccurrence,
   workHistoryKinds,
   workHistoryStatusColor,
   type ChecklistTarget,
   type HistoryEvent,
-  type HistoryOccurrence,
   type HistorySortOrder,
   type HistorySource
 } from './workHistory'
 
 const SORT_ORDER_KEY = 'projectmaster-work-history-sort'
+
+interface OpenReviewDetail {
+  anchor: HTMLElement
+  event: HistoryEvent
+  component?: Component
+}
+
+function findRefreshedDetail(events: readonly HistoryEvent[], previous: HistoryEvent): HistoryEvent | undefined {
+  const { target } = previous
+  if (!target) return undefined
+  const matches = events.filter((event) =>
+    event.details && event.target?.taskId === target.taskId && event.target.text === target.text &&
+    event.day === previous.day && event.time === previous.time && event.kind === previous.kind
+  )
+  return matches.find((event) => event.target?.line === target.line) ?? (matches.length === 1 ? matches[0] : undefined)
+}
 
 const sourceIcons = {
   project: { icon: 'layers', label: 'common.project' },
@@ -58,11 +74,12 @@ export class WorkHistoryView implements SubView {
   private request = 0
   private readonly rangeLabel: HTMLElement
   private readonly log: HTMLElement
+  private readonly detailPane: HTMLElement
+  private readonly detailTitle: HTMLElement
+  private readonly detailContent: HTMLElement
   private sortOrder: HistorySortOrder
-  private readonly renderedRows = new Map<HistoryOccurrence, HTMLElement>()
-  private hoveredRecord?: HistoryEvent['related']
-  private focusedRecord?: HistoryEvent['related']
   private calendar?: Popover
+  private detail?: OpenReviewDetail
   private selectedDate?: Temporal.PlainDate
   private highlightedElement?: HTMLElement
   private highlightTimer?: number
@@ -109,13 +126,29 @@ export class WorkHistoryView implements SubView {
       plugin.app.saveLocalStorage(SORT_ORDER_KEY, this.sortOrder)
       this.paint()
     }
-    this.log = view.createDiv('pm-wh-log')
+    const layout = view.createDiv('pm-wh-layout')
+    this.log = layout.createDiv('pm-wh-log')
+    this.detailPane = layout.createEl('aside', { cls: 'pm-wh-detail-pane', attr: { hidden: '' } })
+    attachWorkHistoryDetailResize(layout, this.detailPane, plugin.app)
+    const header = this.detailPane.createDiv('pm-wh-detail-header')
+    this.detailTitle = header.createEl('h3')
+    const close = header.createEl('button', { attr: { type: 'button', 'aria-label': t('common.close') } })
+    setIcon(close, 'x')
+    close.onclick = () => this.closeDetails(true)
+    view.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape' || !this.detail) return
+      event.stopPropagation()
+      this.closeDetails(true)
+    })
+    this.detailContent = this.detailPane.createDiv('markdown-rendered pm-wh-detail-content')
+    this.detailContent.addEventListener('click', (event) => this.openDetailLink(event), true)
     this.paint()
   }
 
   destroy(): void {
     this.request++
     this.calendar?.close()
+    this.closeDetails()
     this.clearHighlight()
   }
 
@@ -131,7 +164,7 @@ export class WorkHistoryView implements SubView {
       console.error('[PM] Work history', error)
       this.failed = true
     }
-    this.paint()
+    this.paint(true)
   }
 
   private async loadEvents(request: number): Promise<HistoryEvent[]> {
@@ -184,7 +217,7 @@ export class WorkHistoryView implements SubView {
               return checklistHistoryEvents(timelineNoteChecklist(markdown), source, { path: file.path, taskId: task.id })
             }
             await store.loadTaskBody(task)
-            return checklistHistoryEvents(timelineChecklist(task.description), source)
+            return checklistHistoryEvents(timelineChecklist(task.description), source, undefined, path)
           })
         )
         for (const events of batch) result.push(...events)
@@ -205,22 +238,24 @@ export class WorkHistoryView implements SubView {
     }
   }
 
-  private paint(): void {
+  private paint(keepDetail = false): void {
     const current = today()
     const start = weekStart(current).add({ weeks: this.weekOffset })
     const end = start.add({ weeks: 1 })
     const first = start.toString()
     this.rangeLabel.setText(formatDateShort(first) + ' – ' + formatDateShort(end.subtract({ days: 1 }).toString()))
     this.clearHighlight()
-    this.hoveredRecord = undefined
-    this.focusedRecord = undefined
-    this.renderedRows.clear()
+    const days = !this.failed && this.events ? historyDays(this.events, first, end.toString(), this.sortOrder) : undefined
+    const detail = this.detail
+    const refreshed = detail && keepDetail && days
+      ? findRefreshedDetail(days.get(detail.event.day) ?? [], detail.event)
+      : undefined
+    if (!refreshed) this.closeDetails()
     this.log.empty()
-    if (this.failed || !this.events) {
+    if (!days) {
       this.empty(this.failed ? t('common.somethingWentWrong') : t('projectTimeline.loading'))
       return
     }
-    const days = historyDays(this.events, first, end.toString(), this.sortOrder)
     if (!days.size) this.empty(t('workHistory.emptyActual'))
     const weekday = new Intl.DateTimeFormat(locale(), { weekday: 'short', timeZone: 'UTC' })
     for (const [day, events] of days) {
@@ -231,7 +266,18 @@ export class WorkHistoryView implements SubView {
       if (day === current.toString()) heading.createSpan({ cls: 'pm-wh-today', text: t('gantt.today') })
       header.createSpan({ cls: 'pm-wh-weekday', text: weekday.format(new Date(day + 'T00:00:00Z')) })
       const list = section.createEl('ul', { cls: 'pm-wh-items' })
-      for (const event of events) this.renderEvent(list, event)
+      for (const event of events) {
+        const anchor = this.renderEvent(list, event)
+        if (event === refreshed && detail && anchor) {
+          const previous = detail.event.details
+          detail.anchor = anchor
+          detail.event = event
+          anchor.setAttribute('aria-expanded', 'true')
+          if (event.details && (previous?.markdown !== event.details.markdown || previous?.sourcePath !== event.details.sourcePath)) {
+            void this.renderDetails(detail, event.details)
+          }
+        }
+      }
     }
   }
 
@@ -239,30 +285,11 @@ export class WorkHistoryView implements SubView {
     this.log.createDiv({ cls: 'pm-wh-empty', text, attr: { role: 'status' } })
   }
 
-  private renderEvent(list: HTMLElement, event: HistoryEvent): void {
+  private renderEvent(list: HTMLElement, event: HistoryEvent): HTMLElement | undefined {
     const row = list.createEl('li', { cls: 'pm-wh-entry', attr: { 'data-history-kind': event.kind } })
-    const target = event.target
+    const { target, details: detailContent } = event
     const time = row.createDiv('pm-wh-time')
     time.createSpan({ cls: 'pm-wh-time-value', text: event.time ?? t('workHistory.dateOnly') })
-    const link = event.related
-    if (link) {
-      const other = nextHistoryOccurrence(link)
-      const later = link.index < link.entries.length - 1
-      const date = [formatDateShort(other.day), other.time].filter(Boolean).join(' ')
-      const label = t('workHistory.relatedEvent', { date, status: t(workHistoryKinds[other.kind].label) })
-      const jump = time.createEl('button', {
-        cls: 'pm-wh-related',
-        attr: { type: 'button', 'aria-label': label }
-      })
-      setIcon(jump.createSpan({ attr: { 'aria-hidden': 'true' } }), later ? 'arrow-up-right' : 'arrow-down-left')
-      setTooltip(jump, label)
-      jump.onclick = () => this.jumpToRelated(link)
-      row.onpointerenter = () => this.setRelatedPreview('pointer', link)
-      row.onpointerleave = () => this.setRelatedPreview('pointer')
-      jump.onfocus = () => this.setRelatedPreview('focus', link)
-      jump.onblur = () => this.setRelatedPreview('focus')
-      this.renderedRows.set(link.entries[link.index], row)
-    }
     const body = row.createDiv('pm-wh-event-body')
     const kind = workHistoryKinds[event.kind]
     const status = t(kind.label)
@@ -274,19 +301,102 @@ export class WorkHistoryView implements SubView {
     setTooltip(badge, status)
     const content = body.createDiv()
     const title = content.createDiv('pm-wh-title')
+    let details: HTMLButtonElement | undefined
+    if (detailContent) {
+      const anchor = title.createEl('button', {
+        cls: 'pm-wh-text-button pm-wh-detail-trigger',
+        text: event.title,
+        attr: { type: 'button', 'aria-expanded': 'false' }
+      })
+      setTooltip(anchor, t('workHistory.checklistDetails'))
+      anchor.onclick = safeAsync(() => this.toggleDetails(anchor, event, detailContent))
+      details = anchor
+    } else title.createSpan({ text: event.title })
     if (target) {
       const open = title.createEl('button', {
-        cls: 'pm-wh-text-button',
-        text: event.title,
-        attr: { type: 'button' }
+        cls: 'pm-wh-source-jump',
+        attr: { type: 'button', 'aria-label': t('workHistory.openChecklist') }
       })
+      setIcon(open, 'external-link')
       setTooltip(open, t('workHistory.openChecklist'))
-      open.onclick = safeAsync(() => this.openChecklist(target))
-    } else title.setText(event.title)
+      open.onclick = safeAsync(() => {
+        this.closeDetails()
+        return this.openChecklist(target)
+      })
+    }
     this.renderSource(content, event.source)
-    if (event.sameDayStart) {
-      const time = event.sameDayStart.time ?? t('workHistory.dateOnly')
-      content.createDiv({ cls: 'pm-wh-start-time', text: t('workHistory.startedAt', { time }) })
+    if (event.firstStart) {
+      const { day, time } = event.firstStart
+      const format = day.slice(0, 4) === event.day.slice(0, 4) ? formatDateShort : formatDate
+      const display = day === event.day ? time ?? t('workHistory.dateOnly') : [format(day), time].filter(Boolean).join(' ')
+      content.createDiv({ cls: 'pm-wh-start-time', text: t('workHistory.startedAt', { time: display }) })
+    }
+    return details
+  }
+
+  private async toggleDetails(anchor: HTMLElement, event: HistoryEvent, details: NonNullable<HistoryEvent['details']>): Promise<void> {
+    if (this.detail?.anchor === anchor) {
+      this.closeDetails()
+      return
+    }
+    this.calendar?.close()
+    const previous = this.detail
+    previous?.anchor.setAttribute('aria-expanded', 'false')
+    previous?.component?.unload()
+    const detail: OpenReviewDetail = { anchor, event }
+    this.detail = detail
+    anchor.setAttribute('aria-expanded', 'true')
+    this.detailTitle.setText(event.title)
+    this.detailPane.setAttribute('aria-label', event.title)
+    this.detailPane.hidden = false
+    this.detailPane.scrollTop = 0
+    await this.renderDetails(detail, details)
+  }
+
+  private closeDetails(restoreFocus = false): void {
+    const detail = this.detail
+    if (!detail) return
+    this.detail = undefined
+    detail.component?.unload()
+    detail.anchor.setAttribute('aria-expanded', 'false')
+    this.detailPane.hidden = true
+    this.detailContent.empty()
+    if (restoreFocus) detail.anchor.focus({ preventScroll: true })
+  }
+
+  private openDetailLink(event: MouseEvent): void {
+    const target = event.target
+    if (!(target instanceof Element)) return
+    if (target.closest('input[type="checkbox"]')) {
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      return
+    }
+    const link = target.closest<HTMLAnchorElement>('a.internal-link')
+    const href = link?.getAttribute('data-href') ?? link?.getAttribute('href')
+    const details = this.detail?.event.details
+    if (!href || !details) return
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    safeAsync(() => this.plugin.app.workspace.openLinkText(href, details.sourcePath, Keymap.isModEvent(event)))()
+  }
+
+  private async renderDetails(detail: OpenReviewDetail, details: NonNullable<HistoryEvent['details']>): Promise<void> {
+    detail.component?.unload()
+    const component = new Component()
+    component.load()
+    detail.component = component
+    const content = this.detailContent
+    content.empty()
+    const markdown = content.createDiv()
+    try {
+      await MarkdownRenderer.render(this.plugin.app, details.markdown, markdown, details.sourcePath, component)
+      if (this.detail !== detail || detail.component !== component) return
+      for (const checkbox of markdown.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')) checkbox.disabled = true
+    } catch (error) {
+      if (this.detail !== detail || detail.component !== component) return
+      console.error('[PM] Review details', error)
+      content.setText(t('common.somethingWentWrong'))
     }
   }
 
@@ -322,25 +432,6 @@ export class WorkHistoryView implements SubView {
     this.paint()
   }
 
-  private setRelatedPreview(source: 'pointer' | 'focus', link?: HistoryEvent['related']): void {
-    const previous = (this.hoveredRecord ?? this.focusedRecord)?.entries
-    if (source === 'pointer') this.hoveredRecord = link
-    else this.focusedRecord = link
-    const current = (this.hoveredRecord ?? this.focusedRecord)?.entries
-    if (current === previous) return
-    for (const entry of previous ?? []) this.renderedRows.get(entry)?.removeClass('pm-wh-related-preview')
-    for (const entry of current ?? []) this.renderedRows.get(entry)?.addClass('pm-wh-related-preview')
-  }
-
-  private jumpToRelated(link: NonNullable<HistoryEvent['related']>): void {
-    const related = nextHistoryOccurrence(link)
-    this.showWeekOf(Temporal.PlainDate.from(related.day))
-    const row = this.renderedRows.get(related)
-    if (!row) return
-    this.highlight(row, 'center')
-    row.querySelector<HTMLButtonElement>('.pm-wh-related')?.focus({ preventScroll: true })
-  }
-
   private highlight(element: HTMLElement, block: ScrollLogicalPosition): void {
     this.clearHighlight()
     this.highlightedElement = element
@@ -366,7 +457,7 @@ export class WorkHistoryView implements SubView {
       const matches = timelineNoteChecklist(markdown).filter((entry) => entry.text === target.text)
       const entry = matches.find((entry) => entry.line === target.line) ?? (matches.length === 1 ? matches[0] : undefined)
       if (entry) {
-        await openAgendaItem(this.plugin, { path, line: entry.line })
+        await openAgendaItem(this.plugin, { path, line: entry.line }, { cursorAtEnd: true })
         return
       }
     }

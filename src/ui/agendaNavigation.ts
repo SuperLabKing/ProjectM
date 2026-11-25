@@ -12,7 +12,11 @@ import { createAgendaNoticeCard } from './agendaNoticeCard'
 
 type AgendaTarget = Pick<AgendaItem, 'path' | 'line' | 'reminderId'>
 
-export async function openAgendaItem(plugin: PMPlugin, item: AgendaTarget): Promise<void> {
+export async function openAgendaItem(
+  plugin: PMPlugin,
+  item: AgendaTarget,
+  { cursorAtEnd = false }: { cursorAtEnd?: boolean } = {}
+): Promise<void> {
   const { vault, workspace } = plugin.app
   if (item.line === undefined) {
     const taskId = item.reminderId?.startsWith('task:') ? item.reminderId.slice(5) : undefined
@@ -37,9 +41,11 @@ export async function openAgendaItem(plugin: PMPlugin, item: AgendaTarget): Prom
   }
   await workspace.revealLeaf(leaf)
   if (line === undefined || !(leaf.view instanceof MarkdownView)) return
-  const position = { line: Math.min(line, leaf.view.editor.lastLine()), ch: 0 }
-  leaf.view.editor.setCursor(position)
-  leaf.view.editor.scrollIntoView({ from: position, to: position }, true)
+  const editor = leaf.view.editor
+  const row = Math.min(line, editor.lastLine())
+  const position = { line: row, ch: cursorAtEnd ? editor.getLine(row).length : 0 }
+  editor.setCursor(position)
+  editor.scrollIntoView({ from: position, to: position }, true)
 }
 
 const POSITION_KEY = 'dotpm-agenda-notice-position'
