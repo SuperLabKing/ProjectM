@@ -278,6 +278,21 @@ button.pm-chip-btn--active:hover {
   overflow-wrap: anywhere;
 }
 
+.pm-task-table:not(.pm-table-column-measure) .pm-table-row > td {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pm-task-table:not(.pm-table-column-measure) .pm-table-row :is(.pm-table-title-inner, .pm-table-tags) {
+  flex-wrap: nowrap;
+}
+
+.pm-task-table:not(.pm-table-column-measure) .pm-table-row :is(.pm-task-title-text, .pm-table-tags) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .pm-table-resize {
   position: absolute;
   inset: 0 0 0 auto;

@@ -768,6 +768,8 @@
   "taskEditor.autoSave.saved": "Saved automatically",
   "taskEditor.autoSave.failed": "Could not save",
   "taskEditor.resizePanel": "Resize task details",
+  "taskEditor.expandPanel": "Widen",
+  "taskEditor.restorePanelWidth": "Restore width",
   "settings.taskEditorSurface.name": "Open tasks in",
   "settings.taskEditorSurface.tab": "Tab",
   "settings.taskFields.heading": "Task fields",

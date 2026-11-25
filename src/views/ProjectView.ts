@@ -12,6 +12,7 @@ import {
   type TaskQuery,
   type ViewFields,
   type ViewMode,
+  LINKED_ROW_PREFIX,
   flattenTasks,
   shownFields,
   withDefault,
@@ -304,7 +305,7 @@ export class ProjectView extends ItemView {
   }
 
   async onClose(): Promise<void> {
-    await this.taskDetails?.close()
+    await this.taskDetails?.close(false)
     this.subview?.destroy?.()
     this.subview = null
     this.header?.destroy()
@@ -341,6 +342,20 @@ export class ProjectView extends ItemView {
     this.bodyEl = content.createDiv('pm-content')
     this.emptyEl = content.createDiv('pm-filter-empty pm-hidden')
     this.taskDetails = new TaskDetailPanel(layout, this.plugin, this.keyScope)
+    this.registerDomEvent(content, 'click', (event) => {
+      const target = event.target
+      const currentRow = this.taskDetails?.sideRowId
+      if (!(this.subview instanceof TableView) || !currentRow || event.defaultPrevented || event.button !== 0 ||
+          !(target instanceof Element)) return
+      if (target.closest('button, a, input, select, textarea, label, [role="button"], [contenteditable], .clickable-icon, .pm-task-title-text, .pm-chip--interactive')) return
+
+      const row = target.closest<HTMLTableRowElement>('tr')
+      if ((row?.classList.contains('pm-table-row') && row.dataset.pmFoldRow === currentRow) ||
+          target === content || target === this.bodyEl || target.matches('.pm-table-wrapper') ||
+          row?.matches('.pm-table-spacer, .pm-table-add-row')) {
+        void this.taskDetails?.close()
+      }
+    })
 
     this.register(
       this.plugin.store.onProjectChanged((path) => {
@@ -1922,11 +1937,21 @@ export class ProjectView extends ItemView {
 
   /** With several projects in view, a new task has to say which one it belongs to. */
   openTaskDetails(project: Project, opts: Parameters<typeof openTaskModal>[2]): void {
-    if (opts.task) void this.taskDetails?.open(project, opts.task, opts.onSave)
+    if (!opts.task || this.closeActiveTableTask(opts.task.id)) return
+    void this.taskDetails?.open(project, opts.task, opts.onSave)
   }
 
   openLinkedTaskDetails(project: Project, id: string, path: string): void {
-    void this.taskDetails?.openLinked(project, id, path, () => this.refreshProject())
+    if (this.closeActiveTableTask(LINKED_ROW_PREFIX + id)) return
+    void this.taskDetails?.openLinked(
+      project, id, path, () => this.refreshProject()
+    )
+  }
+
+  private closeActiveTableTask(rowId: string): boolean {
+    if (!(this.subview instanceof TableView) || this.taskDetails?.sideRowId !== rowId) return false
+    void this.taskDetails.close()
+    return true
   }
 
   private addTask(anchor: HTMLElement, defaults?: Parameters<typeof openTaskModal>[2]['defaults']): void {

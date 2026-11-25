@@ -38,6 +38,7 @@ import { NoteLinkSuggest } from './NoteLinkSuggest'
 export interface TaskEditorHost {
   surface: 'modal' | 'tab' | 'panel'
   close: () => void
+  renderHeaderActions?: (header: HTMLElement) => void
   /** Keymap scope the save shortcut is registered on. */
   scope: Scope
 }
@@ -439,6 +440,7 @@ export class TaskEditor {
       moreBtn.extraSettingsEl.addClass('pm-te-header-btn')
       moreBtn.onClick(() => this.openOverflowMenu(moreBtn.extraSettingsEl))
     }
+    this.host.renderHeaderActions?.(header)
     const closeBtn = new ExtraButtonComponent(header).setIcon('x').setTooltip(t('common.close'))
     closeBtn.extraSettingsEl.addClass('pm-te-header-btn')
     closeBtn.onClick(() => this.host.close())

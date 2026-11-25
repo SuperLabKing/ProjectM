@@ -723,6 +723,8 @@
   "taskEditor.autoSave.saved": "已自动保存",
   "taskEditor.autoSave.failed": "保存失败",
   "taskEditor.resizePanel": "调整详情栏宽度",
+  "taskEditor.expandPanel": "扩宽",
+  "taskEditor.restorePanelWidth": "恢复宽度",
   "settings.taskEditorSurface.name": "任务打开方式",
   "settings.taskEditorSurface.tab": "标签页",
   "settings.taskFields.heading": "任务字段",

@@ -19,7 +19,8 @@ export class LinkedTaskDetails {
     private record: LinkedNote,
     private path: string,
     private onSave: () => Promise<void>,
-    private close: () => void
+    private close: () => void,
+    private renderHeaderActions?: (header: HTMLElement) => void
   ) {
     this.savedStatus = record.status
     this.savedGroup = groupForRow(plugin, project, this.rowId)?.id ?? ''
@@ -36,6 +37,7 @@ export class LinkedTaskDetails {
     header.createDiv('pm-te-header-spacer')
     this.indicator = header.createSpan({ cls: 'pm-te-save-state', attr: { role: 'status' } })
     this.setSaveState('saved')
+    this.renderHeaderActions?.(header)
     const close = header.createEl('button', {
       cls: 'clickable-icon pm-te-header-btn',
       type: 'button',

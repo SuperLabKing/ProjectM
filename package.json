@@ -1,6 +1,6 @@
 {
   "name": "projectmaster",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "description": "Project management inside Obsidian. Table, Gantt and Kanban over plain Markdown notes, with a local API for agents and scripts.",
   "repository": "github:SuperLabKing/ProjectM",
   "type": "module",

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.12] - 2026-11-25
+
+- Default the right details panel to 60% of the workspace, remember its resized width, and allow temporarily widening it while preserving the cursor and scroll position.
+- Click the current task again or click the empty table area to save and close the details panel. Click another task to switch directly.
+- Animate opening, closing, widening and restoring the panel while keeping table rows on one line.
+
 ## [0.0.11] - 2026-11-24
 
 - Link all retained cross-day records for the same checkbox and let users cycle through them, including across weeks.
