@@ -5,6 +5,7 @@ import { findIgnoringCase, newProjectFolder, projectFilePath } from '#store'
 import { safeAsync, renderPropRow, renderIconControl, renderSelectControl } from '@dotpm/ui'
 import { saveShortcutLabel } from '../utils'
 import { renderPersonPicker } from '#ui/PersonPicker'
+import { projectIconHistory } from '#ui/ProjectIconHistory'
 
 interface Draft {
   title: string
@@ -137,6 +138,7 @@ export class ProjectCreateModal extends Modal {
       container: this.iconHost,
       value: this.draft.icon,
       color: this.draft.color,
+      history: projectIconHistory(this.app),
       onChange: (icon) => {
         this.draft.icon = icon
       }

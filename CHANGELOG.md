@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.13] - 2026-11-25
+
+- Smooth task details transitions by skipping repeated row measurements during width changes and resizing the description after the animation settles.
+- Search project icons by name, keyword or alias, and use a single set of shortcuts for recent and frequent icons. Keep the selected outline inside its cell.
+- Share the dashboard's project context menu with projects and subprojects in the project tree.
+
 ## [0.0.12] - 2026-11-25
 
 - Default the right details panel to 60% of the workspace, remember its resized width, and allow temporarily widening it while preserving the cursor and scroll position.

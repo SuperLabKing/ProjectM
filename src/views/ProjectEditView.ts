@@ -33,6 +33,7 @@ import {
 } from '@dotpm/ui'
 import { confirmDialog } from '#ui/ModalFactory'
 import { renderPersonPicker } from '#ui/PersonPicker'
+import { projectIconHistory } from '#ui/ProjectIconHistory'
 import { renderPriorityListEditor, renderStatusListEditor } from '#ui/PaletteListEditor'
 
 export const PM_PROJECT_EDIT_VIEW_TYPE = 'pm-project-edit'
@@ -183,6 +184,7 @@ export class ProjectEditView extends ItemView {
         container: cell,
         value: project.icon,
         color: project.color,
+        history: projectIconHistory(this.app),
         onChange: (icon) => {
           this.save({ icon })
           this.render()

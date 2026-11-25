@@ -100,6 +100,7 @@ import { ProjectTimelineView } from './gantt/ProjectTimelineView'
 import { WorkHistoryView } from './gantt/WorkHistoryView'
 import { KanbanView } from './KanbanView'
 import { openTaskModal } from '#ui/ModalFactory'
+import { openProjectContextMenu, type ProjectContextMenuOptions } from '#ui/ProjectContextMenu'
 import { TaskDetailPanel } from './TaskDetailPanel'
 import { exportViewAsHtml } from '../export/exportView'
 import { collapsedTaskIds, setAllCollapsed } from './collapse'
@@ -1027,6 +1028,12 @@ export class ProjectView extends ItemView {
         this.plugin.settings.projectManualOrder !== false
           ? this.projectTreeReorder()
           : undefined
+      const contextMenu: ProjectContextMenuOptions = {
+        plugin: this.plugin,
+        openProject: (path, tab) =>
+          this.plugin.router.openProjectLink(path, tab === 'current' ? this.leaf : undefined),
+        redraw: () => this.renderProjectTree()
+      }
       const renderNode = (list: HTMLElement, ref: ProjectRef): void => {
         const children = index.childRefs(ref.path, includeArchived)
         const item = list.createEl('li')
@@ -1052,6 +1059,9 @@ export class ProjectView extends ItemView {
         renderGlyph(link, { icon: ref.icon ?? 'folder', color: ref.color })
         link.createSpan({ cls: 'pm-project-tree-name', text: ref.title })
         link.addEventListener('click', safeAsync(() => selectProject(ref)))
+        row.addEventListener('contextmenu', (event) => {
+          if (!event.defaultPrevented) openProjectContextMenu(contextMenu, ref, event)
+        })
         if (!children.length) return
         const childList = item.createEl('ul')
         this.bindProjectTreeBranch(branch, childList, branches?.[ref.id] ?? defaultExpanded.has(ref.id), (expanded) =>

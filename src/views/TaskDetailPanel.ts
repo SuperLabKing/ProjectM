@@ -46,7 +46,10 @@ export class TaskDetailPanel {
       this.width = clampRatio(next)
       this.expanded = false
       this.applyWidth()
-      if (remember) this.plugin.app.saveLocalStorage(WIDTH_KEY, this.width)
+      if (remember) {
+        void this.settleWidth()
+        this.plugin.app.saveLocalStorage(WIDTH_KEY, this.width)
+      }
     }
     this.separator.setAttribute('aria-valuemin', String(MIN_RATIO * 100))
     this.separator.setAttribute('aria-valuemax', String(EXPANDED_RATIO * 100))
@@ -127,10 +130,9 @@ export class TaskDetailPanel {
     )
     this.expanded = !this.expanded
     this.applyWidth()
-    const motion = ++this.widthMotion
     const request = this.request
-    void this.afterWidthTransition().then(() => {
-      if (request !== this.request || motion !== this.widthMotion) return
+    void this.settleWidth(() => {
+      if (request !== this.request) return
       for (const { element, top, left } of positions) {
         element.scrollTop = top
         element.scrollLeft = left
@@ -138,22 +140,29 @@ export class TaskDetailPanel {
     })
   }
 
-  private async afterWidthTransition(): Promise<void> {
+  private async settleWidth(after?: () => void): Promise<void> {
+    const motion = ++this.widthMotion
     const transition = this.panel.getAnimations().find(
       (animation) => (animation as CSSTransition).transitionProperty === 'flex-basis'
     )
-    if (!transition) return
-    const win = this.panel.win
-    const duration = Number(transition.effect?.getComputedTiming().endTime ?? 0)
-    let timer = 0
-    try {
-      await Promise.race([
-        transition.finished.catch(() => undefined),
-        new Promise<void>((resolve) => { timer = win.setTimeout(resolve, duration + 50) })
-      ])
-    } finally {
-      win.clearTimeout(timer)
+    if (transition) {
+      this.panel.addClass('pm-task-detail--moving')
+      const win = this.panel.win
+      const duration = Number(transition.effect?.getComputedTiming().endTime ?? 0)
+      let timer = 0
+      try {
+        await Promise.race([
+          transition.finished.catch(() => undefined),
+          new Promise<void>((resolve) => { timer = win.setTimeout(resolve, duration + 50) })
+        ])
+      } finally {
+        win.clearTimeout(timer)
+      }
     }
+    if (motion !== this.widthMotion) return
+    this.panel.removeClass('pm-task-detail--moving')
+    if (!this.panel.hidden) this.mount.querySelector('.pm-modal-description')?.dispatchEvent(new Event('pm-detail-resized'))
+    after?.()
   }
 
   private disposeClosingEditor(): void {
@@ -202,6 +211,7 @@ export class TaskDetailPanel {
     })
     this.editor = editor
     editor.mount(this.mount)
+    void this.settleWidth()
   }
 
   async openLinked(project: Project, id: string, path: string, onSave: () => Promise<void>): Promise<void> {
@@ -225,6 +235,7 @@ export class TaskDetailPanel {
     }, this.renderPanelActions)
     this.editor = editor
     editor.mount()
+    void this.settleWidth()
   }
 
   async close(animate = true): Promise<void> {
@@ -239,11 +250,14 @@ export class TaskDetailPanel {
     this.setVisible(false)
     if (!slide) {
       editor?.handleClose()
-      if (!animate) this.disposeClosingEditor()
+      if (!animate) {
+        void this.settleWidth()
+        this.disposeClosingEditor()
+      }
       return
     }
     this.closingEditor = editor
-    void this.afterWidthTransition().then(() => {
+    void this.settleWidth(() => {
       if (this.closingEditor === editor) this.disposeClosingEditor()
     })
   }

@@ -241,8 +241,15 @@ export function renderTable(ctx: TableContext): void {
   void remeasureOnceFontsLoad(ctx)
 
   ctx.state.resizeObserver?.disconnect()
+  let viewportHeight = wrapper.clientHeight
+  let bodyHeight = ctx.state.tableBody.getBoundingClientRect().height
   ctx.state.resizeObserver = new ResizeObserver(() => {
     if (ctx.state.rowDrag?.isPreviewing()) return
+    const nextViewportHeight = wrapper.clientHeight
+    const nextBodyHeight = ctx.state.tableBody?.getBoundingClientRect().height ?? 0
+    if (nextViewportHeight === viewportHeight && nextBodyHeight === bodyHeight) return
+    viewportHeight = nextViewportHeight
+    bodyHeight = nextBodyHeight
     const before = ctx.state.rowHeight
     calibrateRowHeight(ctx)
     if (ctx.state.rowHeight !== before) return
@@ -251,6 +258,7 @@ export function renderTable(ctx: TableContext): void {
     ctx.state.renderWindow?.()
   })
   ctx.state.resizeObserver.observe(wrapper)
+  ctx.state.resizeObserver.observe(ctx.state.tableBody)
 }
 
 function taskRowDrop(ctx: TableContext, sources: string[], target: string, position: TreeDrop) {
@@ -483,7 +491,7 @@ function renderWindowRows(ctx: TableContext): void {
   calibrateRowHeight(ctx)
 }
 
-/** Fallback font metrics wrap the tags, so rows paint taller until the real font loads. */
+/** Recheck row metrics once the final fonts are ready. */
 async function remeasureOnceFontsLoad(ctx: TableContext): Promise<void> {
   await activeDocument.fonts.ready
   if (ctx.state.tableBody?.isConnected) calibrateRowHeight(ctx)

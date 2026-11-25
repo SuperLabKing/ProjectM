@@ -363,13 +363,34 @@ button.pm-icon-cell--glyph {
 }
 button.pm-icon-cell--selected {
   background: color-mix(in srgb, var(--interactive-accent) 15%, transparent);
-  box-shadow: 0 0 0 1px var(--interactive-accent);
+  box-shadow: inset 0 0 0 1px var(--interactive-accent);
   color: var(--text-normal);
+}
+button.pm-icon-cell:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: -2px;
 }
 .pm-icon-grid-hint:not(:empty) {
   margin-top: 6px;
   font-size: var(--font-ui-smaller);
   color: var(--text-faint);
+}
+
+.pm-icon-section-label {
+  margin: 6px 4px 2px;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+
+.pm-icon-shortcuts:not(:empty):not([hidden]) {
+  margin-block-end: 6px;
+  padding-block-end: 5px;
+  border-block-end: 1px solid var(--background-modifier-border);
+}
+
+.pm-icon-more:not([hidden]) {
+  margin-block-start: 4px;
+  justify-content: center;
 }
 
 button.pm-icon-trigger {
@@ -662,7 +683,7 @@ button.pm-icon-trigger {
 
 .pm-project-task-split {
   --pm-detail-motion: 220ms;
-  --pm-detail-ease: cubic-bezier(0.22, 0.76, 0.25, 1);
+  --pm-detail-ease: cubic-bezier(0.28, 0.62, 0.32, 1);
 }
 
 .pm-project-task-split:is(.pm-task-detail-resizing, :has(> .pm-project-tree-resize:active)) {

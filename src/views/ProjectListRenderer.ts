@@ -1,4 +1,3 @@
-import { Menu } from 'obsidian'
 import type PMPlugin from '#main'
 import { folderOf, projectFolderOf, type ProjectRef } from '#store'
 import {
@@ -14,6 +13,7 @@ import {
   t
 } from '@dotpm/core'
 import { safeAsync, CollapseToggle, ProjectRow, projectFieldLabel } from '@dotpm/ui'
+import { openProjectContextMenu } from '#ui/ProjectContextMenu'
 import { linkedRefs } from './linkedRefs'
 import { attachColumnResize, createTableColumns, FILL_TITLE_WIDTH } from './table/TableColumns'
 import { attachColumnAlignment, syncTableCellAlignment } from './table/TableColumnAlignment'
@@ -241,80 +241,4 @@ function renderRow(
     })
     paint()
   }
-}
-
-function openProjectContextMenu(ctx: ProjectListContext, ref: ProjectRef, e: MouseEvent): void {
-  const menu = new Menu()
-  menu.addItem((item) =>
-    item
-      .setTitle(t('project.openInCurrentTab'))
-      .setIcon('arrow-right')
-      .onClick(safeAsync(() => ctx.openProject(ref.path, 'current')))
-  )
-  menu.addItem((item) =>
-    item
-      .setTitle(t('project.openInNewTab'))
-      .setIcon('external-link')
-      .onClick(safeAsync(() => ctx.openProject(ref.path, 'new')))
-  )
-  menu.addSeparator()
-  menu.addItem((item) =>
-    item
-      .setTitle(t('project.openOverview'))
-      .setIcon('file-text')
-      .onClick(safeAsync(() => ctx.plugin.router.openProjectOverview(ref.path)))
-  )
-  menu.addItem((item) =>
-    item
-      .setTitle(t('project.openTasks'))
-      .setIcon('table')
-      .onClick(safeAsync(() => ctx.plugin.router.openProjectTasks(ref.path)))
-  )
-  menu.addItem((item) =>
-    item
-      .setTitle(t('commands.duplicateProject'))
-      .setIcon('copy')
-      .onClick(
-        safeAsync(async () => {
-          const project = await ctx.plugin.store.loadProjectByPath(ref.path)
-          if (!project) return
-          await ctx.plugin.duplicateProjectFlow(project)
-        })
-      )
-  )
-  menu.addItem((item) =>
-    item
-      .setTitle(t('project.edit'))
-      .setIcon('settings')
-      .onClick(safeAsync(() => ctx.plugin.router.openProjectEdit(ref.path)))
-  )
-  if (!ctx.plugin.index.isArchived(ref.path)) {
-    menu.addItem((item) =>
-      item
-        .setTitle(t('project.archive'))
-        .setIcon('archive')
-        .onClick(safeAsync(() => ctx.plugin.setProjectArchived(ref.path, true)))
-    )
-  } else if (ref.archived) {
-    menu.addItem((item) =>
-      item
-        .setTitle(t('project.unarchive'))
-        .setIcon('archive-restore')
-        .onClick(safeAsync(() => ctx.plugin.setProjectArchived(ref.path, false)))
-    )
-  }
-  menu.addItem((item) =>
-    item
-      .setTitle(t('project.delete'))
-      .setIcon('trash')
-      .onClick(
-        safeAsync(async () => {
-          const project = await ctx.plugin.store.loadProjectByPath(ref.path)
-          if (!project) return
-          await ctx.plugin.store.deleteProject(project)
-          ctx.redraw()
-        })
-      )
-  )
-  menu.showAtMouseEvent(e)
 }

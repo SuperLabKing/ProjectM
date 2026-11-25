@@ -546,12 +546,16 @@ export class TaskEditor {
     }
 
     let measuredWidth = 0
-    this.descResizeObserver?.disconnect()
-    this.descResizeObserver = new ResizeObserver(() => {
+    const panel = descArea.closest('.pm-task-detail')
+    const resizeDescription = () => {
+      if (panel?.classList.contains('pm-task-detail--moving')) return
       if (descArea.clientWidth === measuredWidth) return
       measuredWidth = descArea.clientWidth
       if (!descArea.classList.contains('pm-hidden')) autoResize()
-    })
+    }
+    descArea.addEventListener('pm-detail-resized', resizeDescription)
+    this.descResizeObserver?.disconnect()
+    this.descResizeObserver = new ResizeObserver(resizeDescription)
     this.descResizeObserver.observe(descArea)
 
     const hasContent = () => this.task.description.trim().length > 0
