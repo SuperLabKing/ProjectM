@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.16] - 2026-11-26
+
+- Check GitHub for stable ProjectMaster releases and install updates directly from the plugin settings.
+- Verify installation files, back up the current version, and reload ProjectMaster. Restore the previous version if installation fails.
+
 ## [0.0.15] - 2026-11-26
 
 - Configure background, symbol, and text colors for the five time statuses in one place.
