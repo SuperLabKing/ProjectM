@@ -1,10 +1,9 @@
-import { App, Notice, Platform, PluginSettingTab, Setting, debounce } from 'obsidian'
+import { App, Notice, Platform, PluginSettingTab, Setting, debounce, setIcon } from 'obsidian'
 import type { SettingDefinitionItem, SettingDefinitionPage } from 'obsidian'
 import type PMPlugin from './main'
 import {
   type PMSettings,
   type AgendaNoticeEdge,
-  type WorkHistoryStatus,
   AGENDA_GLASS_PARAMS,
   AGENDA_SOURCE_FILTERS,
   DEFAULT_PALETTE_COLOR,
@@ -37,7 +36,9 @@ import { generateToken } from './api/LocalApiServer'
 import { AgendaWindowPicker, listAgendaWindows } from './ui/agendaWindowCapture'
 import { glassValue, type GlassField } from './ui/agendaGlass'
 import { renderProjectMasterUpdate } from './ui/ProjectMasterUpdate'
-import { workHistoryKinds, workHistoryStatusColor } from './views/gantt/workHistory'
+import { workHistoryKinds } from './views/gantt/workHistory'
+import { resolveTimeStatusColors, timeStatuses, timeStatusColorParts } from './ui/timeStatusPalette'
+import { renderTimeStatusColorPreview } from './ui/TimeStatusColorPreview'
 
 export type { PMSettings }
 export { DEFAULT_SETTINGS }
@@ -159,7 +160,7 @@ export class PMSettingTab extends PluginSettingTab {
         type: 'group',
         heading: t('settings.style.heading'),
         items: [
-          this.workHistoryColorsPage(),
+          this.timeStatusColorsPage(),
           {
             name: t('settings.showTagColors.name'),
             desc: t('settings.showTagColors.desc'),
@@ -769,29 +770,74 @@ export class PMSettingTab extends PluginSettingTab {
     return total === 0 ? t('settings.taskNotes.upToDate') : tn('settings.changeCount', total)
   }
 
-  private workHistoryColorsPage(): SettingDefinitionPage {
-    return {
-      type: 'page',
-      name: t('settings.workHistoryColors.name'),
-      desc: t('settings.workHistoryColors.desc'),
-      items: (Object.keys(workHistoryKinds) as WorkHistoryStatus[]).map((kind) => {
-        const name = t(workHistoryKinds[kind].label)
-        return {
-          name,
-          render: (setting: Setting) => {
-            const { settings } = this.plugin
-            const input = setting.controlEl.createEl('input', {
+  private timeStatusColorsPage(): SettingDefinitionPage {
+    let showPreview: ReturnType<typeof renderTimeStatusColorPreview> | undefined
+    const previewItem = {
+      name: t('settings.timeStatusColors.preview'),
+      render: (setting: Setting) => {
+        setting.settingEl.addClass('pm-time-color-preview-setting')
+        showPreview = renderTimeStatusColorPreview(setting.controlEl, this.plugin.settings.timeStatusColors)
+      }
+    }
+    const colorItems = timeStatuses.map((kind) => {
+      const name = t(kind === 'plan' ? 'projectTimeline.plan' : kind === 'start' ? 'settings.timeStatusColors.start' : workHistoryKinds[kind].label)
+      return {
+        name,
+        render: (setting: Setting) => {
+          const { settings } = this.plugin
+          const group = setting.controlEl.createDiv('pm-time-color-options')
+          const fields = timeStatusColorParts.map((part) => {
+            const label = t(`settings.timeStatusColors.${part}`)
+            const field = group.createDiv('pm-time-color-option')
+            field.createSpan({ text: label })
+            const controls = field.createDiv('pm-time-color-option-controls')
+            const input = controls.createEl('input', {
               type: 'color',
-              value: workHistoryStatusColor(settings.workHistoryStatusColors, kind),
-              attr: { 'aria-label': name, 'data-pm-history-color': kind }
+              attr: { 'aria-label': `${name} · ${label}`, 'data-pm-time-status-color': kind, 'data-color-part': part }
+            })
+            const resetLabel = t('settings.timeStatusColors.reset', { field: label })
+            const reset = controls.createEl('button', {
+              cls: 'clickable-icon pm-time-color-reset',
+              attr: { type: 'button', 'aria-label': resetLabel, title: resetLabel }
+            })
+            setIcon(reset, 'rotate-ccw')
+            const showSaved = () => showPreview?.(kind, settings.timeStatusColors)
+            input.addEventListener('focus', showSaved)
+            input.addEventListener('blur', showSaved)
+            input.addEventListener('input', () => {
+              const palette = settings.timeStatusColors
+              showPreview?.(kind, { ...palette, [kind]: { ...palette[kind], [part]: input.value } })
             })
             input.addEventListener('change', () => {
-              settings.workHistoryStatusColors = { ...settings.workHistoryStatusColors, [kind]: input.value }
-              this.persist()
+              void this.plugin.setTimeStatusColor(kind, part, input.value)
+              sync()
+              showSaved()
             })
+            reset.addEventListener('click', () => {
+              void this.plugin.setTimeStatusColor(kind, part, null)
+              sync()
+              showSaved()
+              input.focus()
+            })
+            return { part, input, reset }
+          })
+          const sync = () => {
+            const colors = resolveTimeStatusColors(settings.timeStatusColors, kind)
+            const themeText = group.ownerDocument.body.classList.contains('theme-dark') ? '#ebebeb' : '#222222'
+            for (const { part, input, reset } of fields) {
+              input.value = colors[part] ?? themeText
+              reset.hidden = !settings.timeStatusColors[kind]?.[part]
+            }
           }
+          sync()
         }
-      })
+      }
+    })
+    return {
+      type: 'page',
+      name: t('settings.timeStatusColors.name'),
+      desc: t('settings.timeStatusColors.desc'),
+      items: [previewItem, ...colorItems]
     }
   }
 

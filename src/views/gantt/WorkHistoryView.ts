@@ -1,4 +1,4 @@
-import { Component, Keymap, MarkdownRenderer, setIcon, setTooltip } from 'obsidian'
+import { Component, Keymap, MarkdownRenderer, setIcon, setTooltip, type App } from 'obsidian'
 import type PMPlugin from '#main'
 import { personKeyer, ProjectScope } from '#store'
 import {
@@ -22,7 +22,6 @@ import {
   checklistHistoryEvents,
   historyDays,
   workHistoryKinds,
-  workHistoryStatusColor,
   type ChecklistTarget,
   type HistoryEvent,
   type HistorySortOrder,
@@ -35,6 +34,14 @@ interface OpenReviewDetail {
   anchor: HTMLElement
   event: HistoryEvent
   component?: Component
+}
+
+interface NativeTableLayout {
+  decorateReadonlyExcerpt?: (
+    element: HTMLElement,
+    excerpt: { sourcePath: string; source: string; markdown: string; sourceLines: readonly number[] },
+    component: Component
+  ) => void
 }
 
 function findRefreshedDetail(events: readonly HistoryEvent[], previous: HistoryEvent): HistoryEvent | undefined {
@@ -53,16 +60,6 @@ const sourceIcons = {
   task: { icon: 'clipboard-list', label: 'common.task' },
   subtask: { icon: 'list-checks', label: 'workHistory.subtask' }
 } as const
-
-function statusIconInk(background: string): string {
-  const channels = [1, 3, 5].map((start) => parseInt(background.slice(start, start + 2), 16) / 255)
-  const [red, green, blue] = channels.map((value) =>
-    value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
-  )
-  // White needs 3:1 contrast against the fill for the small status glyph.
-  const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue
-  return luminance <= 0.3 ? '#fff' : '#222'
-}
 
 function weekStart(date: Temporal.PlainDate): Temporal.PlainDate {
   return date.subtract({ days: date.dayOfWeek - 1 })
@@ -140,7 +137,9 @@ export class WorkHistoryView implements SubView {
       event.stopPropagation()
       this.closeDetails(true)
     })
-    this.detailContent = this.detailPane.createDiv('markdown-rendered pm-wh-detail-content')
+    const reading = this.detailPane.createDiv('markdown-reading-view pm-wh-detail-reading')
+    const preview = reading.createDiv('markdown-preview-view markdown-rendered')
+    this.detailContent = preview.createDiv('markdown-preview-sizer markdown-preview-section pm-wh-detail-content')
     this.detailContent.addEventListener('click', (event) => this.openDetailLink(event), true)
     this.paint()
   }
@@ -287,6 +286,7 @@ export class WorkHistoryView implements SubView {
 
   private renderEvent(list: HTMLElement, event: HistoryEvent): HTMLElement | undefined {
     const row = list.createEl('li', { cls: 'pm-wh-entry', attr: { 'data-history-kind': event.kind } })
+    row.style.setProperty('--pm-review-status-text', `var(--pm-time-${event.kind}-text)`)
     const { target, details: detailContent } = event
     const time = row.createDiv('pm-wh-time')
     time.createSpan({ cls: 'pm-wh-time-value', text: event.time ?? t('workHistory.dateOnly') })
@@ -294,9 +294,8 @@ export class WorkHistoryView implements SubView {
     const kind = workHistoryKinds[event.kind]
     const status = t(kind.label)
     const badge = body.createSpan({ cls: 'pm-wh-kind', attr: { role: 'img', 'aria-label': status } })
-    const fill = workHistoryStatusColor(this.plugin.settings.workHistoryStatusColors, event.kind)
-    badge.style.backgroundColor = fill
-    badge.style.color = statusIconInk(fill)
+    badge.style.setProperty('--pm-review-status', `var(--pm-time-${event.kind})`)
+    badge.style.setProperty('--pm-review-status-ink', `var(--pm-time-${event.kind}-ink)`)
     setIcon(badge, kind.icon)
     setTooltip(badge, status)
     const content = body.createDiv()
@@ -393,10 +392,31 @@ export class WorkHistoryView implements SubView {
       await MarkdownRenderer.render(this.plugin.app, details.markdown, markdown, details.sourcePath, component)
       if (this.detail !== detail || detail.component !== component) return
       for (const checkbox of markdown.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')) checkbox.disabled = true
+      for (const table of markdown.querySelectorAll('table')) {
+        if (table.closest('.table-wrapper, .markdown-embed, .internal-embed') || table.parentElement?.closest('table')) continue
+        const wrapper = markdown.ownerDocument.createElement('div')
+        wrapper.className = 'table-wrapper pm-wh-detail-table'
+        table.before(wrapper)
+        wrapper.append(table)
+      }
     } catch (error) {
       if (this.detail !== detail || detail.component !== component) return
       console.error('[PM] Review details', error)
       content.setText(t('common.somethingWentWrong'))
+      return
+    }
+    const { app } = this.plugin
+    const registry = (app as App & { plugins?: { getPlugin?: (id: string) => NativeTableLayout | undefined } }).plugins
+    const tables = registry?.getPlugin?.('native-table-layout')
+    if (!tables?.decorateReadonlyExcerpt || !details.sourceLines || !markdown.querySelector('table')) return
+    const file = app.vault.getFileByPath(details.sourcePath)
+    if (!file) return
+    try {
+      const source = await app.vault.cachedRead(file)
+      if (this.detail !== detail || detail.component !== component) return
+      tables.decorateReadonlyExcerpt(markdown, { ...details, sourceLines: details.sourceLines, source }, component)
+    } catch (error) {
+      console.warn('[PM] Review table layout', error)
     }
   }
 

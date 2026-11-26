@@ -645,6 +645,10 @@ export class ProjectTimelineView implements SubView {
     if (origin === undefined) return
     if (range ? end <= first || start >= last : origin < first || origin >= last) return
     const mark = plot.createSpan({ cls: ['pm-tl-mark', 'pm-tl-' + type] })
+    if (type === 'actual') {
+      const status = dates.event ?? 'start'
+      mark.style.setProperty('--pm-tl-actual', `var(--pm-time-${status})`)
+    }
     mark.toggleClass('is-point', !range)
     mark.toggleClass('is-ongoing', range && !!dates.ongoing)
     mark.style.left = position(Math.max(first, origin)) + '%'

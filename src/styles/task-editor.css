@@ -1,3 +1,107 @@
+.pm-time-color-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+.pm-time-color-option {
+  display: grid;
+  gap: 3px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+.pm-time-color-option-controls {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.pm-time-color-reset[hidden] {
+  display: inline-flex;
+  visibility: hidden;
+}
+
+.setting-item.pm-time-color-preview-setting {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  background: var(--background-primary);
+}
+.pm-time-color-preview-setting .setting-item-control {
+  display: block;
+  padding-inline-start: 0;
+}
+.pm-time-color-preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 154px), 1fr));
+  gap: 8px;
+}
+.pm-time-color-preview-card {
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-secondary);
+  font-size: var(--font-ui-small);
+}
+.pm-time-color-preview-heading {
+  margin-block-end: 5px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+.pm-time-color-preview-sample {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-height: 24px;
+}
+.pm-time-color-preview-log.pm-wh-log {
+  width: 100%;
+  --pm-wh-list-inset: 9px;
+  border-top: 0;
+}
+.pm-time-color-preview-log .pm-wh-entry {
+  grid-template-columns: 32px minmax(0, 1fr);
+  padding-block: 2px;
+}
+.pm-time-color-preview-log .pm-wh-time {
+  --pm-wh-dot-size: 7px;
+}
+.pm-time-color-preview-log .pm-wh-event-body {
+  gap: 5px;
+}
+.pm-time-color-preview-agenda:not([hidden]) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+.pm-time-color-preview-agenda-time {
+  margin-inline-start: auto;
+  color: var(--pm-time-plan-text, var(--text-muted));
+  font-variant-numeric: tabular-nums;
+}
+.pm-time-color-preview-selected,
+.pm-time-color-preview-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: var(--radius-s);
+  padding: 3px 7px;
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+}
+.pm-time-color-preview-selected {
+  background: color-mix(in srgb, var(--dotpm-time-color) 12%, var(--background-primary));
+  color: var(--dotpm-time-text, var(--text-normal));
+}
+.pm-time-color-preview-confirm {
+  background: var(--dotpm-time-color);
+  color: var(--dotpm-time-solid-text);
+}
+
 .pm-pop {
   position: fixed;
   top: var(--pop-top, 0);

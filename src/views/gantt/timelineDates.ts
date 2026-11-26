@@ -37,26 +37,31 @@ export interface TimelineChecklistEntry {
   plan: TimelineDates
   actual: TimelineDates
   details?: string
+  detailLines?: number[]
 }
 
-function readChecklistDetails(lines: string[], line: number): string | undefined {
+function readChecklistDetails(lines: string[], line: number): { details: string; detailLines: number[] } | undefined {
   const [, quotes, prefix] = /^((?:[ \t]*>[ \t]?)*)([ \t]*(?:[-*+]|\d+[.)])[ \t]+)/.exec(lines[line]) ?? []
   if (!prefix) return undefined
   const quoteDepth = quotes.replace(/[^>]/g, '').length
   const columns = (text: string) => [...text].reduce((width, char) => char === '\t' ? width + 4 - width % 4 : width + 1, 0)
   const required = columns(prefix)
   const details: string[] = []
+  const detailLines: number[] = []
   let childIndent: number | undefined
   let fence: string | undefined
   for (let index = line + 1; index < lines.length; index++) {
     let text = lines[index]
     for (let depth = 0; depth < quoteDepth; depth++) {
       const marker = /^[ \t]*>[ \t]?/.exec(text)
-      if (!marker) return meaningfulDetails(details)
+      if (!marker) return meaningfulDetails(details, detailLines)
       text = text.slice(marker[0].length)
     }
     if (!text.trim()) {
-      if (childIndent === undefined) details.push('')
+      if (childIndent === undefined) {
+        details.push('')
+        detailLines.push(index)
+      }
       continue
     }
     const spaces = /^[ \t]*/.exec(text)![0]
@@ -76,13 +81,18 @@ function readChecklistDetails(lines: string[], line: number): string | undefined
       else if (fence[0] === boundary[1][0] && boundary[1].length >= fence.length && !boundary[2].trim()) fence = undefined
     }
     details.push(content)
+    detailLines.push(index)
   }
-  return meaningfulDetails(details)
+  return meaningfulDetails(details, detailLines)
 }
 
-function meaningfulDetails(lines: string[]): string | undefined {
-  const markdown = lines.join('\n').replace(/^\n+|\n+$/g, '')
-  return markdown.replace(/%%[\s\S]*?%%|<!--[\s\S]*?-->/g, '').trim() ? markdown : undefined
+function meaningfulDetails(lines: string[], sourceLines: number[]): { details: string; detailLines: number[] } | undefined {
+  const first = lines.findIndex(Boolean)
+  const last = lines.findLastIndex(Boolean)
+  if (first < 0) return undefined
+  const details = lines.slice(first, last + 1).join('\n')
+  if (!details.replace(/%%[\s\S]*?%%|<!--[\s\S]*?-->/g, '').trim()) return undefined
+  return { details, detailLines: sourceLines.slice(first, last + 1) }
 }
 
 /** Read the same scheduled syntax as Agenda and the recorded editing timestamps. */
@@ -155,7 +165,7 @@ export function timelineChecklist(description: string): TimelineChecklistEntry[]
     const title = schedule?.title ?? (stateAt < 0 ? plain : plain.slice(0, stateAt)).replace(/[\s*_~]+$/, '').trim()
     if (title && (schedule || actual.start || actual.end)) {
       const details = actual.end || actual.ongoing ? readChecklistDetails(lines, line) : undefined
-      entries.push({ line, title, mark, plan: { start: schedule?.start, end: schedule?.due }, actual, details })
+      entries.push({ line, title, mark, plan: { start: schedule?.start, end: schedule?.due }, actual, ...details })
     }
   }
   return entries
@@ -167,7 +177,12 @@ export function timelineNoteChecklist(markdown: string): (TimelineChecklistEntry
   const offset = frontmatter.split(/\r?\n/).length - 1
   const body = markdown.slice(frontmatter.length).replace(/(?:^|\r?\n)## Subtasks[ \t]*(?:\r?\n|$)[\s\S]*$/, '')
   const lines = body.split(/\r?\n/)
-  return timelineChecklist(body).map((entry) => ({ ...entry, line: entry.line + offset, text: lines[entry.line] }))
+  return timelineChecklist(body).map((entry) => ({
+    ...entry,
+    detailLines: entry.detailLines?.map((line) => line + offset),
+    line: entry.line + offset,
+    text: lines[entry.line]
+  }))
 }
 
 function clockDate(line: string): AgendaDate | undefined {

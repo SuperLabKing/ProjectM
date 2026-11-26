@@ -377,14 +377,17 @@ export interface TableColumnAlignment {
   cell?: TableAlignment
 }
 
-export const DEFAULT_WORK_HISTORY_STATUS_COLORS = {
+export const DEFAULT_TIME_STATUS_COLORS = {
+  plan: '#9873f7',
   start: '#b47a20',
   completion: '#4b9b71',
   hold: '#bd5b66',
   cancellation: '#6b7280'
 } as const
 
-export type WorkHistoryStatus = keyof typeof DEFAULT_WORK_HISTORY_STATUS_COLORS
+export type TimeStatus = keyof typeof DEFAULT_TIME_STATUS_COLORS
+export type WorkHistoryStatus = Exclude<TimeStatus, 'plan'>
+export type TimeStatusColorPart = 'background' | 'symbol' | 'text'
 
 export interface PMSettings {
   /** Where new projects are created. Projects are discovered vault-wide, wherever they live. */
@@ -429,7 +432,7 @@ export interface PMSettings {
   saveTaskOnClose: boolean
   taskEditorSurface: 'modal' | 'tab' | 'panel'
   projectTimelineLayout: 'drilldown' | 'nested'
-  workHistoryStatusColors: Partial<Record<WorkHistoryStatus, string>>
+  timeStatusColors: Partial<Record<TimeStatus, Partial<Record<TimeStatusColorPart, string>>>>
   editingEnhancements?: Record<string, unknown>
   /** Key shortcut to create or save tasks and projects. */
   editorSaveModifier: 'Shift' | 'Mod'
@@ -558,7 +561,7 @@ export const DEFAULT_SETTINGS: PMSettings = {
   saveTaskOnClose: true,
   taskEditorSurface: 'modal',
   projectTimelineLayout: 'drilldown',
-  workHistoryStatusColors: {},
+  timeStatusColors: {},
   editorSaveModifier: 'Shift',
   projectSurface: 'overview',
   projectTab: 'new',

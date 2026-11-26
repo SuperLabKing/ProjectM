@@ -88,7 +88,8 @@ describe('work history', () => {
     expect(review).toHaveLength(1)
     expect(review[0].details).toEqual({
       markdown: ['Checked the contact sheet.', '![[sheet.png]]', '- [[Summary|See the summary]]', '  - A nested note', 'Parent conclusion.'].join('\n'),
-      sourcePath: note.path
+      sourcePath: note.path,
+      sourceLines: [4, 5, 6, 7, 10]
     })
     expect(events.find(event => event.title === 'Child')?.details?.markdown).toBe('Child-only notes')
     expect(events.find(event => event.title === 'Sibling')?.details).toBeUndefined()

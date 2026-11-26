@@ -3287,7 +3287,6 @@ async function installDatePicker({ plugin, app, obsidian }) {
         return { start: first.date, end: last?.date || null, withTime: first.hasTime, deadline, duration };
     };
 
-    const dateColors = { plan: "#9873F7", start: "#E68A00", done: "#2E9E66", hold: "#E05355", cancel: "#7E869B" };
     const taskDateContext = (target, pos, detected) => {
         const full = target.text();
         const from = full.lastIndexOf("\n", Math.max(0, pos - 1)) + 1;
@@ -3647,6 +3646,7 @@ async function installDatePicker({ plugin, app, obsidian }) {
             const el = document.createElement("div");
             el.className = "dotpm-dm-pop dotpm-dm-dial-layout";
             el.dataset.role = "popover";
+            el.dataset.editKind = "plan";
             this.el = el;
             const context = this.context;
             let fieldRow;
@@ -3656,7 +3656,6 @@ async function installDatePicker({ plugin, app, obsidian }) {
                 fieldRow.setAttribute("role", "group");
                 fieldRow.setAttribute("aria-label", "编辑哪种时间");
                 const selected = context.selected;
-                el.style.setProperty("--dotpm-edit-color", dateColors[selected.kind]);
                 el.dataset.editKind = selected.kind;
                 for (const [kind, label] of [["plan", "计划"], ["start", "开始"], ["done", "完成"], ["hold", "搁置"], ["cancel", "取消"]]) {
                     const option = context.options.find(item => item.kind === kind);
@@ -3666,7 +3665,6 @@ async function installDatePicker({ plugin, app, obsidian }) {
                     button.className = "dotpm-dm-kind";
                     button.dataset.role = "date-kind";
                     button.dataset.kind = kind;
-                    button.style.setProperty("--kind-color", dateColors[kind]);
                     button.disabled = !available;
                     button.title = available ? (kind === "start" ? "编辑首次开始时间" : "编辑" + label + "时间") : "暂无" + label + "时间记录";
                     button.setAttribute("aria-pressed", String(available && kind === selected.kind));
@@ -3682,7 +3680,6 @@ async function installDatePicker({ plugin, app, obsidian }) {
                         Object.assign(st, readSelection(option.range));
                         cleared = false;
                         durationLock = 0;
-                        el.style.setProperty("--dotpm-edit-color", dateColors[kind]);
                         el.dataset.editKind = kind;
                         for (const tab of fieldRow.children) {
                             tab.setAttribute("aria-pressed", String(tab === button));

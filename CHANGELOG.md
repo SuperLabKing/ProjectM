@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.15] - 2026-11-26
+
+- Configure background, symbol, and text colors for the five time statuses in one place.
+- Share the palette across work review, date capsules, the date picker, checkboxes, the agenda, and the Gantt view.
+- Preview changes while picking a color. Planning uses an agenda preview, and actual statuses use the work review layout.
+- Render review details using Obsidian’s Reading view styles and preserve saved widths, merges, and alignment when Native Table Layout supports read-only excerpts.
+
 ## [0.0.14] - 2026-11-25
 
 - Rename the Timeline view to Work review.

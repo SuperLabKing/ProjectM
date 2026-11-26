@@ -1,4 +1,4 @@
-import { DEFAULT_WORK_HISTORY_STATUS_COLORS, readColor, type PMSettings, type WorkHistoryStatus } from '@dotpm/core'
+import type { WorkHistoryStatus } from '@dotpm/core'
 import type { AgendaDate } from '../agendaEntries'
 import type { TimelineChecklistEntry } from './timelineDates'
 
@@ -8,10 +8,6 @@ export const workHistoryKinds = {
   hold: { label: 'projectTimeline.held', icon: 'play' },
   cancellation: { label: 'projectTimeline.cancelled', icon: 'x' }
 } as const satisfies Record<WorkHistoryStatus, { label: string; icon: string }>
-
-export function workHistoryStatusColor(colors: PMSettings['workHistoryStatusColors'], kind: WorkHistoryStatus): string {
-  return readColor(colors?.[kind]) ?? DEFAULT_WORK_HISTORY_STATUS_COLORS[kind]
-}
 
 export type HistoryLevel = 'project' | 'subproject' | 'task' | 'subtask'
 
@@ -33,7 +29,7 @@ export interface HistoryEvent {
   firstStart?: AgendaDate
   kind: WorkHistoryStatus
   target?: ChecklistTarget
-  details?: { markdown: string; sourcePath: string }
+  details?: { markdown: string; sourcePath: string; sourceLines?: readonly number[] }
   title: string
   source: readonly HistorySource[]
 }
@@ -51,7 +47,7 @@ export function checklistHistoryEvents(
     const kind = ongoing ? 'start' : event
     if (!date || !kind) continue
     const target = note && check.text !== undefined ? { ...note, line: check.line, text: check.text } : undefined
-    const details = check.details ? { markdown: check.details, sourcePath } : undefined
+    const details = check.details ? { markdown: check.details, sourcePath, sourceLines: target && check.detailLines } : undefined
     records.push({ ...date, kind, firstStart: ongoing ? undefined : start, title: check.title, source, target, details })
   }
   return records

@@ -14,6 +14,8 @@ import {
   type PMSettings,
   type Project,
   type Task,
+  type TimeStatus,
+  type TimeStatusColorPart,
   flattenTasks,
   dedupePeople,
   displayName,
@@ -69,6 +71,7 @@ import { exportViewAsHtml } from './export/exportView'
 import { generateToken, LocalApiServer } from './api/LocalApiServer'
 import { EditingEnhancements } from './editing/enhancements.cjs'
 import { migrateEditingEnhancements } from './editing/migrateEditingEnhancements'
+import { normalizeTimeStatusColors, writeTimeStatusPalette } from './ui/timeStatusPalette'
 
 export default class PMPlugin extends Plugin {
   settings: PMSettings = { ...DEFAULT_SETTINGS }
@@ -82,6 +85,7 @@ export default class PMPlugin extends Plugin {
   router!: PMViewRouter
   localApi!: LocalApiServer
   editingEnhancements?: EditingEnhancements
+  private readonly paletteDocuments = new Set<Document>()
   /** Leaves sent to the markdown editor for a note, which the swap leaves alone while they show it. */
   private markdownEscapes = new WeakMap<WorkspaceLeaf, string>()
   private viewRefreshScheduled = false
@@ -113,6 +117,7 @@ export default class PMPlugin extends Plugin {
   async onload(): Promise<void> {
     installObsidianPlatform()
     await this.loadSettings()
+    this.registerTimeStatusPalette()
     setDateFormat(this.settings.dateFormat)
     this.index = new VaultIndex(this.app, () => this.settings)
     // The first sweep can run against a half-filled metadata cache, so it runs again once
@@ -455,7 +460,10 @@ export default class PMPlugin extends Plugin {
   }
 
   async loadSettings(): Promise<void> {
-    const saved = (await this.loadData()) as Partial<PMSettings> | null
+    const saved = (await this.loadData()) as (Omit<Partial<PMSettings>, 'timeStatusColors'> & {
+      timeStatusColors?: Partial<Record<TimeStatus, unknown>>
+      workHistoryStatusColors?: Partial<Record<TimeStatus, unknown>>
+    }) | null
     // Cloned: a shallow merge would hand the live settings the very arrays and objects
     // DEFAULT_SETTINGS holds, and the first edit would write into the defaults.
     this.settings = Object.assign(structuredClone(DEFAULT_SETTINGS), saved ?? {})
@@ -467,7 +475,10 @@ export default class PMPlugin extends Plugin {
     if (!this.settings.collapsedProjects) this.settings.collapsedProjects = []
     if (!this.settings.excludedFolders) this.settings.excludedFolders = []
 
-    let migrated = false
+    this.settings.timeStatusColors = normalizeTimeStatusColors(saved?.timeStatusColors, saved?.workHistoryStatusColors)
+    Reflect.deleteProperty(this.settings, 'workHistoryStatusColors')
+    let migrated = saved?.workHistoryStatusColors !== undefined ||
+      Object.values(saved?.timeStatusColors ?? {}).some((color) => typeof color === 'string')
     // Filters were keyed by project path before a view could cover several projects.
     for (const key of Object.keys(this.settings.projectFilters)) {
       if (key.includes(':')) continue
@@ -710,6 +721,35 @@ export default class PMPlugin extends Plugin {
 
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings)
+  }
+
+  private registerTimeStatusPalette(): void {
+    const apply = (doc: Document) => {
+      this.paletteDocuments.add(doc)
+      writeTimeStatusPalette(doc, this.settings.timeStatusColors)
+    }
+    apply(document)
+    this.app.workspace.iterateAllLeaves((leaf) => apply(leaf.view.containerEl.ownerDocument))
+    this.registerEvent(this.app.workspace.on('window-open', (_, win) => apply(win.document)))
+    this.registerEvent(this.app.workspace.on('window-close', (_, win) => this.paletteDocuments.delete(win.document)))
+    this.register(() => {
+      for (const doc of this.paletteDocuments) writeTimeStatusPalette(doc)
+      this.paletteDocuments.clear()
+    })
+  }
+
+  async setTimeStatusColor(status: TimeStatus, part: TimeStatusColorPart, value: string | null): Promise<void> {
+    const color = readColor(value)
+    if (value !== null && !color) return
+    const palette = { ...this.settings.timeStatusColors }
+    const parts = { ...palette[status] }
+    if (color) parts[part] = color
+    else delete parts[part]
+    if (Object.keys(parts).length) palette[status] = parts
+    else delete palette[status]
+    this.settings.timeStatusColors = palette
+    for (const doc of this.paletteDocuments) writeTimeStatusPalette(doc, this.settings.timeStatusColors)
+    await this.saveSettings()
   }
 
   async setAgendaSourceFilter(filter: AgendaSourceFilter): Promise<void> {

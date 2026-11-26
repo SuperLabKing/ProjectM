@@ -5,17 +5,13 @@
 
 .pm-agenda {
   --pm-agenda-accent: var(--interactive-accent, #9873f7);
-  --pm-agenda-active: #f5ad42;
-  --pm-agenda-held: var(--dotpm-time-hold-color, #f3aeb6);
+  --pm-agenda-planned: var(--pm-time-plan);
+  --pm-agenda-active: var(--pm-time-start);
+  --pm-agenda-held: var(--pm-time-hold);
   --pm-agenda-overdue: var(--text-error, #d34854);
   padding: 6px clamp(8px, 2vw, 14px);
   font-family: var(--font-interface);
   font-size: var(--font-ui-small);
-}
-
-.dotpm-high-contrast-palette .pm-agenda {
-  --pm-agenda-active: #e68a00;
-  --pm-agenda-held: #e05355;
 }
 
 .pm-agenda-ranges {
@@ -138,15 +134,22 @@
 }
 
 .pm-agenda-status-dot[data-status-tone='todo'] {
-  background: var(--pm-agenda-accent);
+  background: var(--pm-time-plan-dot);
 }
 
 .pm-agenda-status-dot[data-status-tone='active'] {
-  background: var(--pm-agenda-active);
+  background: var(--pm-time-start-dot);
 }
 
 .pm-agenda-status-dot[data-status-tone='held'] {
-  background: var(--pm-agenda-held);
+  background: var(--pm-time-hold-dot);
+}
+
+.pm-agenda-row:has([data-status-tone='todo']) { --pm-agenda-entry-text: var(--pm-time-plan-text); }
+.pm-agenda-row:has([data-status-tone='active']) { --pm-agenda-entry-text: var(--pm-time-start-text); }
+.pm-agenda-row:has([data-status-tone='held']) { --pm-agenda-entry-text: var(--pm-time-hold-text); }
+.pm-agenda-row :is(.pm-agenda-row-status, .pm-agenda-dates) {
+  color: var(--pm-agenda-entry-text, var(--text-muted));
 }
 
 .pm-agenda-dates,
@@ -331,7 +334,7 @@
 }
 
 .pm-agenda-week-item:has([data-status-tone='todo']) {
-  --pm-agenda-event-accent: var(--pm-agenda-accent);
+  --pm-agenda-event-accent: var(--pm-agenda-planned);
 }
 
 .pm-agenda-week-item:has([data-status-tone='active']) {

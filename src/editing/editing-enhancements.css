@@ -307,9 +307,50 @@ button.dotpm-parent-task-menu:is(:hover,:focus-visible){
 }
 
 /* ══ 时间标记：计划 / 开始 / 完成 ══ */
-:root {
-  --dotpm-time-hold-color: #f3aeb6;
-  --dotpm-time-cancel-color: #d4d5dc;
+.pm-time--plan,
+.dotpm-time-detail[data-time-state="plan"],
+.dotpm-dm-pop[data-edit-kind="plan"],
+.dotpm-dm-kind[data-kind="plan"] {
+  --dotpm-time-color: var(--pm-time-plan);
+  --dotpm-time-dot: var(--pm-time-plan-dot);
+  --dotpm-time-text: var(--pm-time-plan-text);
+  --dotpm-time-solid-text: var(--pm-time-plan-solid-text);
+}
+.pm-time--start,
+.dotpm-time-detail[data-time-state="start"],
+.dotpm-dm-pop[data-edit-kind="start"],
+.dotpm-dm-kind[data-kind="start"] {
+  --dotpm-time-color: var(--pm-time-start);
+  --dotpm-time-dot: var(--pm-time-start-dot);
+  --dotpm-time-text: var(--pm-time-start-text);
+  --dotpm-time-solid-text: var(--pm-time-start-solid-text);
+}
+.pm-time--done,
+.dotpm-time-detail[data-time-state="done"],
+.dotpm-dm-pop[data-edit-kind="done"],
+.dotpm-dm-kind[data-kind="done"] {
+  --dotpm-time-color: var(--pm-time-completion);
+  --dotpm-time-dot: var(--pm-time-completion-dot);
+  --dotpm-time-text: var(--pm-time-completion-text);
+  --dotpm-time-solid-text: var(--pm-time-completion-solid-text);
+}
+.pm-time--hold,
+.dotpm-time-detail[data-time-state="hold"],
+.dotpm-dm-pop[data-edit-kind="hold"],
+.dotpm-dm-kind[data-kind="hold"] {
+  --dotpm-time-color: var(--pm-time-hold);
+  --dotpm-time-dot: var(--pm-time-hold-dot);
+  --dotpm-time-text: var(--pm-time-hold-text);
+  --dotpm-time-solid-text: var(--pm-time-hold-solid-text);
+}
+.pm-time--cancel,
+.dotpm-time-detail[data-time-state="cancel"],
+.dotpm-dm-pop[data-edit-kind="cancel"],
+.dotpm-dm-kind[data-kind="cancel"] {
+  --dotpm-time-color: var(--pm-time-cancellation);
+  --dotpm-time-dot: var(--pm-time-cancellation-dot);
+  --dotpm-time-text: var(--pm-time-cancellation-text);
+  --dotpm-time-solid-text: var(--pm-time-cancellation-solid-text);
 }
 .pm-time{
   font-size:.85em;
@@ -321,27 +362,8 @@ button.dotpm-parent-task-menu:is(:hover,:focus-visible){
   font-variant-numeric:tabular-nums;
   letter-spacing:.01em;
   line-height:1.5;
-}
-.pm-time--plan{
-  background:color-mix(in srgb,var(--interactive-accent) 16%,transparent);
-  color:var(--text-muted);
-}
-.pm-time--start{
-  background:color-mix(in srgb,#f2a93b 20%,transparent);
-  color:var(--text-normal);
-}
-.pm-time--done{
-  background:color-mix(in srgb,#3fa96b 20%,transparent);
-  color:var(--text-normal);
-}
-
-.pm-time--hold {
-  background: var(--dotpm-time-hold-color);
-  color: #353440;
-}
-.pm-time--cancel {
-  background: var(--dotpm-time-cancel-color);
-  color: #353440;
+  background:color-mix(in srgb,var(--dotpm-time-color) 20%,transparent);
+  color:var(--dotpm-time-text, var(--text-normal));
 }
 
 /* 状态标签前缀（完成/搁置/取消）与时间之间留一点空隙 */
@@ -349,20 +371,20 @@ button.dotpm-parent-task-menu:is(:hover,:focus-visible){
 
 /* Inline status controls in Live Preview and the dotpm description preview. */
 :is(.dotpm-live-native .HyperMD-task-line, .pm-te-surface .pm-modal-desc-preview li.task-list-item):has(> .pm-time--start, > p > .pm-time--start, > .cm-html-embed > .pm-time--start), .dotpm-time-row--start {
-  --dotpm-checkbox-color: #f5ad42;
-  --dotpm-checkbox-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M5%204v8m6-8v8%22%20fill%3D%22none%22%20stroke%3D%22%23353440%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E");
+  --dotpm-checkbox-color: var(--pm-time-start);
+  --dotpm-checkbox-icon: var(--pm-time-start-glyph);
 }
 :is(.dotpm-live-native .HyperMD-task-line, .pm-te-surface .pm-modal-desc-preview li.task-list-item):has(> .pm-time--done, > p > .pm-time--done, > .cm-html-embed > .pm-time--done), .dotpm-time-row--done {
-  --dotpm-checkbox-color: #a9e2b7;
-  --dotpm-checkbox-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22m4%208%203%203%205-6%22%20fill%3D%22none%22%20stroke%3D%22%23353440%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E");
+  --dotpm-checkbox-color: var(--pm-time-completion);
+  --dotpm-checkbox-icon: var(--pm-time-completion-glyph);
 }
 :is(.dotpm-live-native .HyperMD-task-line, .pm-te-surface .pm-modal-desc-preview li.task-list-item):has(> .pm-time--hold, > p > .pm-time--hold, > .cm-html-embed > .pm-time--hold), .dotpm-time-row--hold {
-  --dotpm-checkbox-color: var(--dotpm-time-hold-color);
-  --dotpm-checkbox-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M6%203l7%205-7%205z%22%20fill%3D%22%23353440%22%2F%3E%3C%2Fsvg%3E");
+  --dotpm-checkbox-color: var(--pm-time-hold);
+  --dotpm-checkbox-icon: var(--pm-time-hold-glyph);
 }
 :is(.dotpm-live-native .HyperMD-task-line, .pm-te-surface .pm-modal-desc-preview li.task-list-item):has(> .pm-time--cancel, > p > .pm-time--cancel, > .cm-html-embed > .pm-time--cancel), .dotpm-time-row--cancel {
-  --dotpm-checkbox-color: var(--dotpm-time-cancel-color);
-  --dotpm-checkbox-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22m5%205%206%206m0-6-6%206%22%20fill%3D%22none%22%20stroke%3D%22%23353440%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E");
+  --dotpm-checkbox-color: var(--pm-time-cancellation);
+  --dotpm-checkbox-icon: var(--pm-time-cancellation-glyph);
 }
 
 :is(.dotpm-live-native .HyperMD-task-line, .pm-te-surface .pm-modal-desc-preview li.task-list-item):has(> .pm-time:not(.pm-time--plan), > p > .pm-time:not(.pm-time--plan), > .cm-html-embed > .pm-time:not(.pm-time--plan)), .dotpm-time-row {
@@ -414,30 +436,30 @@ body.dotpm-high-contrast-palette {
 
   :is(.HyperMD-task-line, li.task-list-item):is([data-task="/"]),
   input.task-list-item-checkbox:is([data-task="/"]) {
-    --task-hc-fill: #E68A00;
-    --task-hc-border: #E68A00;
-    --task-hc-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M5%204v8m6-8v8%22%20fill%3D%22none%22%20stroke%3D%22%23FFFFFF%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E");
+    --task-hc-fill: var(--pm-time-start);
+    --task-hc-border: var(--pm-time-start);
+    --task-hc-icon: var(--pm-time-start-glyph);
   }
 
   :is(.HyperMD-task-line, li.task-list-item):is([data-task="x"], [data-task="X"]),
   input.task-list-item-checkbox:is([data-task="x"], [data-task="X"]) {
-    --task-hc-fill: #2E9E66;
-    --task-hc-border: #2E9E66;
-    --task-hc-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22m4%208%203%203%205-6%22%20fill%3D%22none%22%20stroke%3D%22%23FFFFFF%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E");
+    --task-hc-fill: var(--pm-time-completion);
+    --task-hc-border: var(--pm-time-completion);
+    --task-hc-icon: var(--pm-time-completion-glyph);
   }
 
   :is(.HyperMD-task-line, li.task-list-item):is([data-task="-"]),
   input.task-list-item-checkbox:is([data-task="-"]) {
-    --task-hc-fill: #E05355;
-    --task-hc-border: #E05355;
-    --task-hc-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M6%203l7%205-7%205z%22%20fill%3D%22%23FFFFFF%22%2F%3E%3C%2Fsvg%3E");
+    --task-hc-fill: var(--pm-time-hold);
+    --task-hc-border: var(--pm-time-hold);
+    --task-hc-icon: var(--pm-time-hold-glyph);
   }
 
   :is(.HyperMD-task-line, li.task-list-item):is([data-task="c"], [data-task="C"], [data-task="~"]),
   input.task-list-item-checkbox:is([data-task="c"], [data-task="C"], [data-task="~"]) {
-    --task-hc-fill: #7E869B;
-    --task-hc-border: #7E869B;
-    --task-hc-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22m5%205%206%206m0-6-6%206%22%20fill%3D%22none%22%20stroke%3D%22%23FFFFFF%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E");
+    --task-hc-fill: var(--pm-time-cancellation);
+    --task-hc-border: var(--pm-time-cancellation);
+    --task-hc-icon: var(--pm-time-cancellation-glyph);
   }
 
   /* dotpm stores its state in the inline time marker. Give it precedence over [x]. */
@@ -447,9 +469,9 @@ body.dotpm-high-contrast-palette {
     & > label.task-list-label > input.task-list-item-checkbox,
     & > p > input.task-list-item-checkbox,
     & > p > label.task-list-label > input.task-list-item-checkbox {
-      --task-hc-fill: #E68A00;
-      --task-hc-border: #E68A00;
-      --task-hc-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M5%204v8m6-8v8%22%20fill%3D%22none%22%20stroke%3D%22%23FFFFFF%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E");
+      --task-hc-fill: var(--pm-time-start);
+      --task-hc-border: var(--pm-time-start);
+      --task-hc-icon: var(--pm-time-start-glyph);
     }
   }
 
@@ -459,9 +481,9 @@ body.dotpm-high-contrast-palette {
     & > label.task-list-label > input.task-list-item-checkbox,
     & > p > input.task-list-item-checkbox,
     & > p > label.task-list-label > input.task-list-item-checkbox {
-      --task-hc-fill: #2E9E66;
-      --task-hc-border: #2E9E66;
-      --task-hc-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22m4%208%203%203%205-6%22%20fill%3D%22none%22%20stroke%3D%22%23FFFFFF%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E");
+      --task-hc-fill: var(--pm-time-completion);
+      --task-hc-border: var(--pm-time-completion);
+      --task-hc-icon: var(--pm-time-completion-glyph);
     }
   }
 
@@ -471,9 +493,9 @@ body.dotpm-high-contrast-palette {
     & > label.task-list-label > input.task-list-item-checkbox,
     & > p > input.task-list-item-checkbox,
     & > p > label.task-list-label > input.task-list-item-checkbox {
-      --task-hc-fill: #E05355;
-      --task-hc-border: #E05355;
-      --task-hc-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M6%203l7%205-7%205z%22%20fill%3D%22%23FFFFFF%22%2F%3E%3C%2Fsvg%3E");
+      --task-hc-fill: var(--pm-time-hold);
+      --task-hc-border: var(--pm-time-hold);
+      --task-hc-icon: var(--pm-time-hold-glyph);
     }
   }
 
@@ -483,9 +505,9 @@ body.dotpm-high-contrast-palette {
     & > label.task-list-label > input.task-list-item-checkbox,
     & > p > input.task-list-item-checkbox,
     & > p > label.task-list-label > input.task-list-item-checkbox {
-      --task-hc-fill: #7E869B;
-      --task-hc-border: #7E869B;
-      --task-hc-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22m5%205%206%206m0-6-6%206%22%20fill%3D%22none%22%20stroke%3D%22%23FFFFFF%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E");
+      --task-hc-fill: var(--pm-time-cancellation);
+      --task-hc-border: var(--pm-time-cancellation);
+      --task-hc-icon: var(--pm-time-cancellation-glyph);
     }
   }
 
@@ -533,7 +555,7 @@ body.dotpm-high-contrast-palette {
   :is(.pm-time, .task-time-badge, .ctt-time, .dataview-time-badge) {
     padding: 1px 6px;
     border-radius: 4px;
-    color: inherit !important;
+    color: var(--dotpm-time-text, inherit) !important;
     font-style: italic;
     font-weight: var(--font-bold, 700);
     font-variant-numeric: tabular-nums;
@@ -541,19 +563,19 @@ body.dotpm-high-contrast-palette {
   }
 
   :is(.pm-time--plan, .task-time-badge[data-time-state="plan"], .ctt-time[data-time-state="plan"], .dataview-time-badge[data-time-state="plan"]) {
-    background-color: rgba(152, 115, 247, 0.12) !important;
+    background-color: color-mix(in srgb, var(--pm-time-plan) 16%, transparent) !important;
   }
   :is(.pm-time--start, .task-time-badge[data-time-state="start"], .ctt-time[data-time-state="start"], .dataview-time-badge[data-time-state="start"]) {
-    background-color: rgba(230, 138, 0, 0.16) !important;
+    background-color: color-mix(in srgb, var(--pm-time-start) 16%, transparent) !important;
   }
   :is(.pm-time--done, .task-time-badge[data-time-state="done"], .ctt-time[data-time-state="done"], .dataview-time-badge[data-time-state="done"]) {
-    background-color: rgba(46, 158, 102, 0.16) !important;
+    background-color: color-mix(in srgb, var(--pm-time-completion) 16%, transparent) !important;
   }
   :is(.pm-time--hold, .task-time-badge[data-time-state="hold"], .ctt-time[data-time-state="hold"], .dataview-time-badge[data-time-state="hold"]) {
-    background-color: rgba(224, 83, 85, 0.16) !important;
+    background-color: color-mix(in srgb, var(--pm-time-hold) 16%, transparent) !important;
   }
   :is(.pm-time--cancel, .task-time-badge[data-time-state="cancel"], .ctt-time[data-time-state="cancel"], .dataview-time-badge[data-time-state="cancel"]) {
-    background-color: rgba(126, 134, 155, 0.16) !important;
+    background-color: color-mix(in srgb, var(--pm-time-cancellation) 16%, transparent) !important;
   }
 }
 
@@ -658,18 +680,17 @@ button.dotpm-dm-clear[hidden] { display:none; }
   transform-origin:top left;
   transition:opacity 140ms ease-out, transform 180ms cubic-bezier(.2,.75,.3,1);
 }
-.dotpm-time-detail[data-time-state="plan"] { --dotpm-time-detail-accent:var(--interactive-accent,#9873f7); }
-.dotpm-time-detail[data-time-state="start"] { --dotpm-time-detail-accent:#e68a00; }
-.dotpm-time-detail[data-time-state="done"] { --dotpm-time-detail-accent:#2e9e66; }
-.dotpm-time-detail[data-time-state="hold"] { --dotpm-time-detail-accent:#e05355; }
-.dotpm-time-detail[data-time-state="cancel"] { --dotpm-time-detail-accent:#7e869b; }
+.dotpm-time-detail {
+  --dotpm-time-detail-accent: var(--dotpm-time-color);
+  color: var(--dotpm-time-text, var(--text-normal));
+}
 .dotpm-time-detail strong { display:flex; align-items:center; gap:5px; margin-bottom:2px; }
 .dotpm-time-detail strong::before {
   content:"";
   width:6px;
   height:6px;
   border-radius:50%;
-  background:var(--dotpm-time-detail-accent);
+  background:var(--dotpm-time-dot);
 }
 .dotpm-time-detail.is-open { opacity:1; transform:none; }
 @media (prefers-reduced-motion:reduce) {
@@ -770,11 +791,12 @@ button.dotpm-dm-clear[hidden] { display:none; }
   font-weight: 500;
   transition: background .16s ease, color .16s ease;
 }
-.dotpm-dm-kind-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--kind-color); }
+.dotpm-dm-kind { --kind-color: var(--dotpm-time-color); }
+.dotpm-dm-kind-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--dotpm-time-dot); }
 .dotpm-dm-pop button.dotpm-dm-kind:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
 .dotpm-dm-pop button.dotpm-dm-kind[aria-pressed="true"] {
   background: color-mix(in srgb, var(--kind-color) 12%, var(--background-primary));
-  color: var(--kind-color);
+  color: var(--dotpm-time-text, var(--text-normal));
   font-weight: 600;
 }
 .dotpm-dm-pop button.dotpm-dm-kind:disabled {
@@ -785,7 +807,7 @@ button.dotpm-dm-clear[hidden] { display:none; }
 }
 .dotpm-dm-pop button.dotpm-dm-kind:disabled .dotpm-dm-kind-dot { background: currentColor; }
 .dotpm-dm-pop button.dotpm-dm-kind:focus-visible { outline: 2px solid var(--kind-color); outline-offset: 1px; }
-.dotpm-dm-pop[data-edit-kind] button.dotpm-dm-primary { background: var(--dotpm-edit-color); box-shadow: none; }
+.dotpm-dm-pop[data-edit-kind] button.dotpm-dm-primary { background: var(--dotpm-edit-color); color: var(--dotpm-time-solid-text); box-shadow: none; }
 .dotpm-dm-clock {
   display: flex;
   flex: 1;
@@ -836,7 +858,9 @@ button.dotpm-dm-clear[hidden] { display:none; }
 .dotpm-dm-clock input:disabled, .dotpm-dm-clock button:disabled { opacity: .38; }
 .dotpm-dm-pop .dotpm-dm-seg[hidden],
 .dotpm-dm-pop .dotpm-dm-clear[hidden] { display: none; }
-.dotpm-dm-pop[data-edit-kind]:not([data-edit-kind="plan"]) {
+.dotpm-dm-pop[data-edit-kind] {
+  --dotpm-edit-color: var(--dotpm-time-color);
+  --text-on-accent: var(--dotpm-time-solid-text);
   --interactive-accent: var(--dotpm-edit-color);
   --interactive-accent-hover: var(--dotpm-edit-color);
 }
@@ -994,7 +1018,7 @@ button.dotpm-dm-clear[hidden] { display:none; }
 }
 .dotpm-dm-result-entry .dotpm-dm-icon-button { position: absolute; right: 26px; }
 .dotpm-dm-result-entry .dotpm-dm-icon-button[data-role="clear-date"] { right: 1px; }
-.dotpm-dm-result-output { text-align: center; color: var(--interactive-accent); font-size: 11px; line-height: 1.5; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.dotpm-dm-result-output { text-align: center; color: var(--dotpm-time-text, var(--text-normal)); font-size: 11px; line-height: 1.5; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .dotpm-dm-result-output.is-invalid { color: var(--text-error); }
 
 

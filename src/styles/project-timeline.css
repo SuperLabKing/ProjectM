@@ -1,7 +1,7 @@
 .pm-project-timeline {
   --pm-tl-label: clamp(122px, 34%, 285px);
-  --pm-tl-plan: color-mix(in srgb, var(--interactive-accent) 32%, var(--background-primary));
-  --pm-tl-actual: var(--color-green);
+  --pm-tl-plan: color-mix(in srgb, var(--pm-time-plan) 32%, var(--background-primary));
+  --pm-tl-actual: var(--pm-time-completion);
   color: var(--text-normal);
   padding-bottom: 16px;
 }
@@ -179,7 +179,7 @@
   border-radius: 1px;
   transform: translateX(-50%) rotate(45deg);
 }
-.pm-tl-plan.is-point { background: var(--interactive-accent); }
+.pm-tl-plan.is-point { background: var(--pm-time-plan); }
 .pm-tl-actual.is-ongoing { background: repeating-linear-gradient(90deg, var(--pm-tl-actual) 0 6px, transparent 6px 9px); }
 .pm-tl-undated { color: var(--text-faint); position: absolute; top: 10px; inset-inline-start: 8px; }
 .pm-tl-detail { padding: 9px 12px; border-top: 1px solid var(--background-modifier-border); }
