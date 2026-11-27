@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.17] - 2026-11-27
+
+- Organize settings into Projects and navigation, Tasks and editing, Views and appearance, Agenda and reminders, and Data and integrations.
+- Keep the update controls on the settings home page and move advanced reminder appearance into its own searchable sub-page.
+
 ## [0.0.16] - 2026-11-26
 
 - Check GitHub for stable ProjectMaster releases and install updates directly from the plugin settings.

@@ -61,89 +61,19 @@ export class PMSettingTab extends PluginSettingTab {
     return [
       {
         type: 'group',
-        heading: t('settings.general.heading'),
+        heading: t('settings.layout.sections'),
         items: [
-          {
-            name: t('settings.projectsFolder.name'),
-            desc: t('settings.projectsFolder.desc'),
-            aliases: ['projects folder', 'location'],
-            control: {
-              type: 'folder',
-              key: 'projectsFolder',
-              defaultValue: 'Projects',
-              placeholder: t('settings.projectsFolder.placeholder')
-            }
-          },
-          this.excludedFoldersPage(),
-          {
-            name: t('settings.projectSurface.name'),
-            desc: t('settings.projectSurface.desc'),
-            aliases: ['click', 'project list', 'overview'],
-            control: {
-              type: 'dropdown',
-              key: 'projectSurface',
-              options: { overview: t('settings.projectSurface.overview'), tasks: t('settings.projectSurface.tasks') }
-            }
-          },
-          {
-            name: t('settings.projectTab.name'),
-            desc: t('settings.projectTab.desc'),
-            control: {
-              type: 'dropdown',
-              key: 'projectTab',
-              options: { new: t('project.openInNewTab'), current: t('project.openInCurrentTab') }
-            }
-          },
-          {
-            name: t('settings.defaultView.name'),
-            desc: t('settings.defaultView.desc'),
-            aliases: ['default view'],
-            control: {
-              type: 'dropdown',
-              key: 'defaultView',
-              options: {
-                table: t('views.table'),
-                gantt: t('views.gantt'),
-                timeline: t('views.timeline'),
-                kanban: t('views.kanban')
-              }
-            }
-          },
-          {
-            name: t('settings.projectTimelineLayout.name'),
-            desc: t('settings.projectTimelineLayout.desc'),
-            control: {
-              type: 'dropdown',
-              key: 'projectTimelineLayout',
-              options: {
-                drilldown: t('settings.projectTimelineLayout.drilldown'),
-                nested: t('settings.projectTimelineLayout.nested')
-              }
-            }
-          },
-          {
-            name: t('settings.taskEditorSurface.name'),
-            desc: t('settings.taskEditorSurface.desc'),
-            control: {
-              type: 'dropdown',
-              key: 'taskEditorSurface',
-              options: {
-                modal: t('settings.taskEditorSurface.modal'),
-                panel: t('settings.taskEditorSurface.panel'),
-                tab: t('settings.taskEditorSurface.tab')
-              }
-            }
-          },
-          {
-            name: t('settings.saveShortcut.name'),
-            desc: t('settings.saveShortcut.desc'),
-            aliases: ['hotkey', 'keyboard'],
-            control: {
-              type: 'dropdown',
-              key: 'editorSaveModifier',
-              options: { Shift: saveShortcutLabel('Shift'), Mod: saveShortcutLabel('Mod') }
-            }
-          },
+          this.projectNavigationPage(),
+          this.taskWorkflowPage(),
+          this.viewSettingsPage(),
+          this.agendaSettingsPage(),
+          this.dataSettingsPage()
+        ]
+      },
+      {
+        type: 'group',
+        heading: t('settings.layout.maintenance'),
+        items: [
           {
             name: t('settings.update.name'),
             render: (setting: Setting) => renderProjectMasterUpdate(setting, this.plugin)
@@ -155,230 +85,397 @@ export class PMSettingTab extends PluginSettingTab {
             control: { type: 'toggle', key: 'showReleaseNotes' }
           }
         ]
-      },
-      {
-        type: 'group',
-        heading: t('settings.style.heading'),
-        items: [
-          this.timeStatusColorsPage(),
-          {
-            name: t('settings.showTagColors.name'),
-            desc: t('settings.showTagColors.desc'),
-            aliases: ['appearance'],
-            control: { type: 'toggle', key: 'showTagColors' }
-          },
-          {
-            name: t('settings.dateFormat.name'),
-            desc: t('settings.dateFormat.desc'),
-            aliases: ['appearance', 'date', 'moment'],
-            control: { type: 'text', key: 'dateFormat', placeholder: 'YYYY-MM-DD' }
-          },
-          {
-            name: t('settings.priorityIcons.name'),
-            desc: t('settings.priorityIcons.desc'),
-            aliases: ['appearance', 'chevrons', 'signal'],
-            control: {
-              type: 'dropdown',
-              key: 'priorityIcons',
-              options: priorityIconSetLabels()
-            }
-          }
-        ]
-      },
-      {
-        type: 'group',
-        heading: t('settings.table.heading'),
-        items: [
-          {
-            name: t('settings.showSubtreeConnections.name'),
-            desc: t('settings.showSubtreeConnections.desc'),
-            aliases: ['tree', 'indent', 'subtask'],
-            control: { type: 'toggle', key: 'showSubtreeConnections' }
-          },
-          {
-            name: t('settings.lineBorders.name'),
-            desc: t('settings.lineBorders.desc'),
-            aliases: ['grid', 'lines'],
-            control: {
-              type: 'dropdown',
-              key: 'lineBorders',
-              options: {
-                none: t('settings.lineBorders.none'),
-                horizontal: t('settings.lineBorders.horizontal'),
-                vertical: t('settings.lineBorders.vertical'),
-                both: t('settings.lineBorders.both')
-              }
-            }
-          }
-        ]
-      },
-      {
-        type: 'group',
-        heading: t('settings.gantt.heading'),
-        items: [
-          {
-            name: t('settings.ganttGranularity.name'),
-            desc: t('settings.ganttGranularity.desc'),
-            aliases: ['timeline', 'zoom'],
-            control: {
-              type: 'dropdown',
-              key: 'ganttGranularity',
-              options: {
-                day: t('granularity.day'),
-                week: t('granularity.week'),
-                month: t('granularity.month'),
-                quarter: t('granularity.quarter'),
-                year: t('granularity.year')
-              }
-            }
-          },
-          {
-            name: t('settings.ganttWeekLabel.name'),
-            desc: t('settings.ganttWeekLabel.desc'),
-            aliases: ['timeline'],
-            control: {
-              type: 'dropdown',
-              key: 'ganttWeekLabel',
-              options: {
-                weekNumber: t('settings.ganttWeekLabel.weekNumber'),
-                dateRange: t('settings.ganttWeekLabel.dateRange'),
-                both: t('settings.ganttWeekLabel.both')
-              }
-            }
-          }
-        ]
-      },
-      {
-        type: 'group',
-        heading: t('settings.scheduling.heading'),
-        items: [
-          {
-            name: t('settings.autoSchedule.name'),
-            desc: t('settings.autoSchedule.desc'),
-            aliases: ['dependencies'],
-            control: { type: 'toggle', key: 'autoSchedule' }
-          },
-          {
-            name: t('settings.pullForward.name'),
-            desc: t('settings.pullForward.desc'),
-            aliases: ['dependencies'],
-            control: {
-              type: 'toggle',
-              key: 'pullForwardOnEarlyFinish',
-              disabled: () => !this.plugin.settings.autoSchedule
-            }
-          }
-        ]
-      },
-      {
-        type: 'group',
-        heading: t('settings.archive.heading'),
-        items: [
-          {
-            name: t('settings.autoArchiveDays.name'),
-            desc: t('settings.autoArchiveDays.desc'),
-            aliases: ['archive', 'cleanup', 'done'],
-            control: {
-              type: 'slider',
-              key: 'autoArchiveDays',
-              min: 0,
-              max: 90,
-              step: 1
-            }
-          }
-        ]
-      },
-      {
-        type: 'group',
-        heading: t('settings.notifications.heading'),
-        items: [
-          {
-            name: t('settings.notificationsEnabled.name'),
-            desc: t('settings.notificationsEnabled.desc'),
-            aliases: ['notifications', 'banner'],
-            control: { type: 'toggle', key: 'notificationsEnabled' }
-          },
-          {
-            name: t('settings.notificationLeadDays.name'),
-            desc: t('settings.notificationLeadDays.desc'),
-            aliases: ['notifications', 'reminders', 'lead time'],
-            control: {
-              type: 'slider',
-              key: 'notificationLeadDays',
-              min: 1,
-              max: 14,
-              step: 1,
-              disabled: () => !this.plugin.settings.notificationsEnabled
-            }
-          },
-          {
-            name: t('agenda.sourceFilter'),
-            desc: t('settings.agendaSourceFilter.desc'),
-            render: (setting: Setting) => {
-              setting.addDropdown((dropdown) => {
-                for (const filter of AGENDA_SOURCE_FILTERS)
-                  dropdown.addOption(filter, t(`agenda.sourceFilter.${filter}`))
-                dropdown.selectEl.setAttribute('aria-label', t('agenda.sourceFilter'))
-                dropdown.setValue(this.plugin.settings.agendaSourceFilter).onChange(
-                  safeAsync(async (value) => {
-                    const filter = AGENDA_SOURCE_FILTERS.find((option) => option === value)
-                    if (filter) await this.plugin.setAgendaSourceFilter(filter)
-                  })
-                )
-              })
-            }
-          },
-          {
-            name: t('settings.snoozeMinutes.name'),
-            desc: t('settings.snoozeMinutes.desc'),
-            aliases: ['notifications', 'snooze'],
-            render: (setting: Setting) => this.renderSnoozeSetting(setting)
-          },
-          {
-            name: t('settings.agendaNoticeStyle.name'),
-            desc: t('settings.agendaNoticeStyle.desc'),
-            aliases: ['notifications', 'glass', 'appearance'],
-            render: (setting: Setting) => this.renderReminderStyle(setting)
-          },
-          ...(['agendaGlassBlur', 'agendaGlassRefraction', 'agendaGlassDispersion', 'agendaGlassShade'] as const).map(
-            (key) => ({
-              name: t(`settings.${key}.name`),
-              desc: t(`settings.${key}.desc`),
-              render: (setting: Setting) => this.renderGlassNumber(setting, key)
-            })
-          ),
-          {
-            name: t('settings.agendaWindowRefraction.name'),
-            desc: t('settings.agendaWindowRefraction.desc'),
-            visible: () => Platform.isWin,
-            render: (setting: Setting) => this.renderWindowRefraction(setting)
-          },
-          {
-            name: t('settings.agendaNoticeEdge.name'),
-            desc: t('settings.agendaNoticeEdge.desc'),
-            aliases: ['notifications', 'slide', 'animation'],
-            render: (setting: Setting) => this.renderReminderEdge(setting)
-          }
-        ]
-      },
-      ...(this.plugin.editingEnhancements ? [{
-        type: 'group' as const,
-        heading: t('settings.editingEnhancements.heading'),
-        items: editingDefinitions(this.plugin.editingEnhancements)
-      }] : []),
-      this.localApiGroup(),
-      {
-        type: 'group',
-        heading: t('settings.taskFields.heading'),
-        items: [this.statusesPage(), this.prioritiesPage(), this.customFieldsPage(), this.teamMembersPage()]
-      },
-      {
-        type: 'group',
-        heading: t('settings.integrations.heading'),
-        visible: () => isTaskNotesInstalled(this.app),
-        items: [this.taskNotesPage()]
       }
     ]
+  }
+
+  private projectNavigationPage(): SettingDefinitionPage {
+    return {
+      type: 'page',
+      name: t('settings.layout.navigation.name'),
+      desc: t('settings.layout.navigation.desc'),
+      items: [
+        {
+          name: t('settings.projectSurface.name'),
+          desc: t('settings.projectSurface.desc'),
+          aliases: ['click', 'project list', 'overview'],
+          control: {
+            type: 'dropdown',
+            key: 'projectSurface',
+            options: { overview: t('settings.projectSurface.overview'), tasks: t('settings.projectSurface.tasks') }
+          }
+        },
+        {
+          name: t('settings.projectTab.name'),
+          desc: t('settings.projectTab.desc'),
+          control: {
+            type: 'dropdown',
+            key: 'projectTab',
+            options: { new: t('project.openInNewTab'), current: t('project.openInCurrentTab') }
+          }
+        },
+        {
+          name: t('settings.defaultView.name'),
+          desc: t('settings.defaultView.desc'),
+          aliases: ['default view'],
+          control: {
+            type: 'dropdown',
+            key: 'defaultView',
+            options: {
+              table: t('views.table'),
+              gantt: t('views.gantt'),
+              timeline: t('views.timeline'),
+              kanban: t('views.kanban')
+            }
+          }
+        }
+      ]
+    }
+  }
+
+  private taskWorkflowPage(): SettingDefinitionPage {
+    const editing = this.plugin.editingEnhancements
+    return {
+      type: 'page',
+      name: t('settings.layout.tasks.name'),
+      desc: t('settings.layout.tasks.desc'),
+      items: [
+        {
+          type: 'group',
+          heading: t('settings.layout.editing'),
+          items: [
+            {
+              name: t('settings.taskEditorSurface.name'),
+              desc: t('settings.taskEditorSurface.desc'),
+              control: {
+                type: 'dropdown',
+                key: 'taskEditorSurface',
+                options: {
+                  modal: t('settings.taskEditorSurface.modal'),
+                  panel: t('settings.taskEditorSurface.panel'),
+                  tab: t('settings.taskEditorSurface.tab')
+                }
+              }
+            },
+            {
+              name: t('settings.saveShortcut.name'),
+              desc: t('settings.saveShortcut.desc'),
+              aliases: ['hotkey', 'keyboard'],
+              control: {
+                type: 'dropdown',
+                key: 'editorSaveModifier',
+                options: { Shift: saveShortcutLabel('Shift'), Mod: saveShortcutLabel('Mod') }
+              }
+            }
+          ]
+        },
+        ...(editing ? [{
+          type: 'group' as const,
+          heading: t('settings.editingEnhancements.heading'),
+          items: editingDefinitions(editing)
+        }] : []),
+        {
+          type: 'group',
+          heading: t('settings.taskFields.heading'),
+          items: [this.statusesPage(), this.prioritiesPage(), this.customFieldsPage(), this.teamMembersPage()]
+        },
+        {
+          type: 'group',
+          heading: t('settings.layout.lifecycle'),
+          items: [
+            {
+              name: t('settings.autoSchedule.name'),
+              desc: t('settings.autoSchedule.desc'),
+              aliases: ['dependencies'],
+              control: { type: 'toggle', key: 'autoSchedule' }
+            },
+            {
+              name: t('settings.pullForward.name'),
+              desc: t('settings.pullForward.desc'),
+              aliases: ['dependencies'],
+              control: {
+                type: 'toggle',
+                key: 'pullForwardOnEarlyFinish',
+                disabled: () => !this.plugin.settings.autoSchedule
+              }
+            },
+            {
+              name: t('settings.autoArchiveDays.name'),
+              desc: t('settings.autoArchiveDays.desc'),
+              aliases: ['archive', 'cleanup', 'done'],
+              control: {
+                type: 'slider',
+                key: 'autoArchiveDays',
+                min: 0,
+                max: 90,
+                step: 1
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+
+  private viewSettingsPage(): SettingDefinitionPage {
+    return {
+      type: 'page',
+      name: t('settings.layout.views.name'),
+      desc: t('settings.layout.views.desc'),
+      items: [
+        {
+          type: 'group',
+          heading: t('settings.style.heading'),
+          items: [
+            this.timeStatusColorsPage(),
+            {
+              name: t('settings.showTagColors.name'),
+              desc: t('settings.showTagColors.desc'),
+              aliases: ['appearance'],
+              control: { type: 'toggle', key: 'showTagColors' }
+            },
+            {
+              name: t('settings.dateFormat.name'),
+              desc: t('settings.dateFormat.desc'),
+              aliases: ['appearance', 'date', 'moment'],
+              control: { type: 'text', key: 'dateFormat', placeholder: 'YYYY-MM-DD' }
+            },
+            {
+              name: t('settings.priorityIcons.name'),
+              desc: t('settings.priorityIcons.desc'),
+              aliases: ['appearance', 'chevrons', 'signal'],
+              control: {
+                type: 'dropdown',
+                key: 'priorityIcons',
+                options: priorityIconSetLabels()
+              }
+            }
+          ]
+        },
+        {
+          type: 'group',
+          heading: t('settings.table.heading'),
+          items: [
+            {
+              name: t('settings.showSubtreeConnections.name'),
+              desc: t('settings.showSubtreeConnections.desc'),
+              aliases: ['tree', 'indent', 'subtask'],
+              control: { type: 'toggle', key: 'showSubtreeConnections' }
+            },
+            {
+              name: t('settings.lineBorders.name'),
+              desc: t('settings.lineBorders.desc'),
+              aliases: ['grid', 'lines'],
+              control: {
+                type: 'dropdown',
+                key: 'lineBorders',
+                options: {
+                  none: t('settings.lineBorders.none'),
+                  horizontal: t('settings.lineBorders.horizontal'),
+                  vertical: t('settings.lineBorders.vertical'),
+                  both: t('settings.lineBorders.both')
+                }
+              }
+            }
+          ]
+        },
+        {
+          type: 'group',
+          heading: t('settings.gantt.heading'),
+          items: [
+            {
+              name: t('settings.projectTimelineLayout.name'),
+              desc: t('settings.projectTimelineLayout.desc'),
+              control: {
+                type: 'dropdown',
+                key: 'projectTimelineLayout',
+                options: {
+                  drilldown: t('settings.projectTimelineLayout.drilldown'),
+                  nested: t('settings.projectTimelineLayout.nested')
+                }
+              }
+            },
+            {
+              name: t('settings.ganttGranularity.name'),
+              desc: t('settings.ganttGranularity.desc'),
+              aliases: ['timeline', 'zoom'],
+              control: {
+                type: 'dropdown',
+                key: 'ganttGranularity',
+                options: {
+                  day: t('granularity.day'),
+                  week: t('granularity.week'),
+                  month: t('granularity.month'),
+                  quarter: t('granularity.quarter'),
+                  year: t('granularity.year')
+                }
+              }
+            },
+            {
+              name: t('settings.ganttWeekLabel.name'),
+              desc: t('settings.ganttWeekLabel.desc'),
+              aliases: ['timeline'],
+              control: {
+                type: 'dropdown',
+                key: 'ganttWeekLabel',
+                options: {
+                  weekNumber: t('settings.ganttWeekLabel.weekNumber'),
+                  dateRange: t('settings.ganttWeekLabel.dateRange'),
+                  both: t('settings.ganttWeekLabel.both')
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+
+  private agendaSettingsPage(): SettingDefinitionPage {
+    return {
+      type: 'page',
+      name: t('settings.layout.agenda.name'),
+      desc: t('settings.layout.agenda.desc'),
+      items: [
+        {
+          type: 'group',
+          heading: t('settings.layout.agendaPanel'),
+          items: [
+            {
+              name: t('agenda.sourceFilter'),
+              desc: t('settings.agendaSourceFilter.desc'),
+              render: (setting: Setting) => {
+                setting.addDropdown((dropdown) => {
+                  for (const filter of AGENDA_SOURCE_FILTERS)
+                    dropdown.addOption(filter, t(`agenda.sourceFilter.${filter}`))
+                  dropdown.selectEl.setAttribute('aria-label', t('agenda.sourceFilter'))
+                  dropdown.setValue(this.plugin.settings.agendaSourceFilter).onChange(
+                    safeAsync(async (value) => {
+                      const filter = AGENDA_SOURCE_FILTERS.find((option) => option === value)
+                      if (filter) await this.plugin.setAgendaSourceFilter(filter)
+                    })
+                  )
+                })
+              }
+            }
+          ]
+        },
+        {
+          type: 'group',
+          heading: t('settings.layout.reminderRules'),
+          items: [
+            {
+              name: t('settings.notificationsEnabled.name'),
+              desc: t('settings.notificationsEnabled.desc'),
+              aliases: ['notifications', 'banner'],
+              control: { type: 'toggle', key: 'notificationsEnabled' }
+            },
+            {
+              name: t('settings.notificationLeadDays.name'),
+              desc: t('settings.notificationLeadDays.desc'),
+              aliases: ['notifications', 'reminders', 'lead time'],
+              control: {
+                type: 'slider',
+                key: 'notificationLeadDays',
+                min: 1,
+                max: 14,
+                step: 1,
+                disabled: () => !this.plugin.settings.notificationsEnabled
+              }
+            },
+            {
+              name: t('settings.snoozeMinutes.name'),
+              desc: t('settings.snoozeMinutes.desc'),
+              aliases: ['notifications', 'snooze'],
+              render: (setting: Setting) => this.renderSnoozeSetting(setting)
+            }
+          ]
+        },
+        {
+          type: 'group',
+          heading: t('settings.layout.reminderAppearance'),
+          items: [
+            {
+              name: t('settings.agendaNoticeStyle.name'),
+              desc: t('settings.agendaNoticeStyle.desc'),
+              aliases: ['notifications', 'glass', 'appearance'],
+              render: (setting: Setting) => this.renderReminderStyle(setting)
+            },
+            {
+              name: t('settings.agendaNoticeEdge.name'),
+              desc: t('settings.agendaNoticeEdge.desc'),
+              aliases: ['notifications', 'slide', 'animation'],
+              render: (setting: Setting) => this.renderReminderEdge(setting)
+            },
+            {
+              type: 'page',
+              name: t('settings.layout.advancedReminder.name'),
+              desc: t('settings.layout.advancedReminder.desc'),
+              items: [
+                {
+                  type: 'group',
+                  heading: t('settings.layout.glassParameters'),
+                  items: (['agendaGlassBlur', 'agendaGlassRefraction', 'agendaGlassDispersion', 'agendaGlassShade'] as const).map(
+                    (key) => ({
+                      name: t(`settings.${key}.name`),
+                      desc: t(`settings.${key}.desc`),
+                      render: (setting: Setting) => this.renderGlassNumber(setting, key)
+                    })
+                  )
+                },
+                {
+                  type: 'group',
+                  heading: t('settings.layout.desktopBackdrop'),
+                  visible: () => Platform.isWin,
+                  items: [
+                    {
+                      name: t('settings.agendaWindowRefraction.name'),
+                      desc: t('settings.agendaWindowRefraction.desc'),
+                      render: (setting: Setting) => this.renderWindowRefraction(setting)
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+
+  private dataSettingsPage(): SettingDefinitionPage {
+    return {
+      type: 'page',
+      name: t('settings.layout.data.name'),
+      desc: t('settings.layout.data.desc'),
+      items: [
+        {
+          type: 'group',
+          heading: t('settings.layout.storage'),
+          items: [
+            {
+              name: t('settings.projectsFolder.name'),
+              desc: t('settings.projectsFolder.desc'),
+              aliases: ['projects folder', 'location'],
+              control: {
+                type: 'folder',
+                key: 'projectsFolder',
+                defaultValue: 'Projects',
+                placeholder: t('settings.projectsFolder.placeholder')
+              }
+            },
+            this.excludedFoldersPage()
+          ]
+        },
+        this.localApiGroup(),
+        {
+          type: 'group',
+          heading: t('settings.integrations.heading'),
+          visible: () => isTaskNotesInstalled(this.app),
+          items: [this.taskNotesPage()]
+        }
+      ]
+    }
   }
 
   private renderSnoozeSetting(setting: Setting): void {

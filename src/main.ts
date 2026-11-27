@@ -365,7 +365,8 @@ export default class PMPlugin extends Plugin {
       }
     })
 
-    this.addSettingTab(new PMSettingTab(this.app, this))
+    const settingTab = new PMSettingTab(this.app, this)
+    this.addSettingTab(settingTab)
     let stopped = false
     this.register(() => { stopped = true })
     this.app.workspace.onLayoutReady(safeAsync(async () => {
@@ -382,6 +383,7 @@ export default class PMPlugin extends Plugin {
       this.editingEnhancements = editing
       this.register(() => editing.stop())
       await editing.start()
+      if (!stopped) settingTab.update()
     }))
     this.notifier.start()
     this.timedReminders.start()
